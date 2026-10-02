@@ -1,0 +1,36 @@
+
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{B8286ED2-F8C5-4E20-9614-92558567AC16}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppointmentIntegration.Api", "src\AppointmentIntegration.Api\AppointmentIntegration.Api.csproj", "{25E182A4-F5E9-4974-B4EB-FCAE43B7E29A}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{22F0B469-7174-45C2-8DF2-60C10FCD918D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppointmentIntegration.Api.Tests", "tests\AppointmentIntegration.Api.Tests\AppointmentIntegration.Api.Tests.csproj", "{A4A2CF5F-1640-45EF-ADEA-A5B949FCADC8}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{25E182A4-F5E9-4974-B4EB-FCAE43B7E29A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{25E182A4-F5E9-4974-B4EB-FCAE43B7E29A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{25E182A4-F5E9-4974-B4EB-FCAE43B7E29A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{25E182A4-F5E9-4974-B4EB-FCAE43B7E29A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A4A2CF5F-1640-45EF-ADEA-A5B949FCADC8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A4A2CF5F-1640-45EF-ADEA-A5B949FCADC8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A4A2CF5F-1640-45EF-ADEA-A5B949FCADC8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A4A2CF5F-1640-45EF-ADEA-A5B949FCADC8}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{25E182A4-F5E9-4974-B4EB-FCAE43B7E29A} = {B8286ED2-F8C5-4E20-9614-92558567AC16}
+		{A4A2CF5F-1640-45EF-ADEA-A5B949FCADC8} = {22F0B469-7174-45C2-8DF2-60C10FCD918D}
+	EndGlobalSection
+EndGlobal

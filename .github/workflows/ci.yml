@@ -1,0 +1,59 @@
+name: Appointment Integration CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - "feature/**"
+
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  build-and-test:
+    name: Build and Test Appointment Integration
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore dependencies
+        run: dotnet restore AppointmentIntegration.sln
+
+      - name: Build
+        run: dotnet build AppointmentIntegration.sln --no-restore --configuration Release
+
+      - name: Run tests with coverage
+        run: dotnet test AppointmentIntegration.sln --no-build --configuration Release --collect:"XPlat Code Coverage" --results-directory ./TestResults --logger "trx"
+
+      - name: Publish test results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Appointment Integration Test Results
+          path: "TestResults/**/*.trx"
+          reporter: dotnet-trx
+          fail-on-empty: false
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: TestResults/**/coverage.cobertura.xml
+          if-no-files-found: ignore
+
+      - name: Build Docker image
+        run: docker build -t carenova-appointment-integration:ci-test .
