@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http.Headers;
 using System.Net.Http.Json;
 
 namespace AppointmentIntegration.Api.Clients;
@@ -26,14 +25,19 @@ public class DoctorPaymentClient
             $"api/doctors/{doctorId}");
 
         var authorization =
-            _httpContextAccessor.HttpContext?.Request.Headers.Authorization.ToString();
+            _httpContextAccessor.HttpContext?
+                .Request.Headers.Authorization.ToString();
 
         if (!string.IsNullOrWhiteSpace(authorization))
         {
-            request.Headers.TryAddWithoutValidation("Authorization", authorization);
+            request.Headers.TryAddWithoutValidation(
+                "Authorization",
+                authorization);
         }
 
-        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        using var response = await _httpClient.SendAsync(
+            request,
+            cancellationToken);
 
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
@@ -52,6 +56,8 @@ public class DoctorProfileResponse
     public Guid DoctorId { get; set; }
 
     public string FullName { get; set; } = string.Empty;
+
+    public decimal? ConsultationFee { get; set; }
 
     public DoctorAvailabilityResponse Availability { get; set; } = new();
 

@@ -12,6 +12,15 @@ public class AppDbContext : DbContext
 
     public DbSet<Appointment> Appointments => Set<Appointment>();
 
+    public DbSet<AppointmentPayment> AppointmentPayments =>
+        Set<AppointmentPayment>();
+
+    public DbSet<AppointmentReceipt> AppointmentReceipts =>
+        Set<AppointmentReceipt>();
+
+    public DbSet<AppointmentOnlinePaymentAttempt> AppointmentOnlinePaymentAttempts =>
+    Set<AppointmentOnlinePaymentAttempt>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -47,5 +56,95 @@ public class AppDbContext : DbContext
             .HasConversion<string>()
             .HasMaxLength(30)
             .IsRequired();
+
+
+        var payment = modelBuilder.Entity<AppointmentPayment>();
+
+        payment.HasKey(x => x.Id);
+
+        /*
+         * One payment record per appointment.
+         */
+        payment.HasIndex(x => x.AppointmentId)
+            .IsUnique();
+
+        payment.Property(x => x.Amount)
+            .HasPrecision(12, 2);
+
+        payment.Property(x => x.Method)
+            .HasConversion<string>()
+            .HasMaxLength(30)
+            .IsRequired();
+
+        payment.Property(x => x.Status)
+            .HasConversion<string>()
+            .HasMaxLength(40)
+            .IsRequired();
+
+        payment.HasOne(x => x.Appointment)
+            .WithOne()
+            .HasForeignKey<AppointmentPayment>(
+                x => x.AppointmentId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+
+        var receipt = modelBuilder.Entity<AppointmentReceipt>();
+
+        receipt.HasKey(x => x.Id);
+
+        receipt.Property(x => x.OriginalFileName)
+            .IsRequired()
+            .HasMaxLength(255);
+
+        receipt.Property(x => x.BlobName)
+            .IsRequired()
+            .HasMaxLength(500);
+
+        receipt.Property(x => x.ContainerName)
+            .IsRequired()
+            .HasMaxLength(100);
+
+        receipt.Property(x => x.ContentType)
+            .IsRequired()
+            .HasMaxLength(100);
+
+        receipt.Property(x => x.Status)
+            .HasConversion<string>()
+            .HasMaxLength(40)
+            .IsRequired();
+
+        receipt.HasOne(x => x.AppointmentPayment)
+            .WithMany()
+            .HasForeignKey(x => x.AppointmentPaymentId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+            var onlineAttempt =
+    modelBuilder.Entity<AppointmentOnlinePaymentAttempt>();
+
+onlineAttempt.HasKey(x => x.Id);
+
+onlineAttempt.HasIndex(x => x.GatewayReference)
+    .IsUnique();
+
+onlineAttempt.Property(x => x.GatewayReference)
+    .IsRequired()
+    .HasMaxLength(100);
+
+onlineAttempt.Property(x => x.Amount)
+    .HasPrecision(12, 2);
+
+onlineAttempt.Property(x => x.Currency)
+    .IsRequired()
+    .HasMaxLength(3);
+
+onlineAttempt.Property(x => x.Status)
+    .HasConversion<string>()
+    .HasMaxLength(30)
+    .IsRequired();
+
+onlineAttempt.HasOne(x => x.AppointmentPayment)
+    .WithMany()
+    .HasForeignKey(x => x.AppointmentPaymentId)
+    .OnDelete(DeleteBehavior.Cascade);
     }
 }

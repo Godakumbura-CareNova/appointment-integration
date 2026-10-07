@@ -10,6 +10,8 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using AppointmentIntegration.Api.Security;
+using AppointmentIntegration.Api.Config;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -54,13 +56,34 @@ builder.Services.AddHttpClient<DoctorPaymentClient>(client =>
     }
 });
 
-builder.Services.AddScoped<IAppointmentRepository, AppointmentRepository>();
-builder.Services.AddScoped<IAppointmentBookingService, AppointmentBookingService>();
+builder.Services.AddScoped<
+    IAppointmentRepository,
+    AppointmentRepository>();
+
+builder.Services.AddScoped<
+    IAppointmentPaymentRepository,
+    AppointmentPaymentRepository>();
+
+builder.Services.AddScoped<
+    IAppointmentBookingService,
+    AppointmentBookingService>();
 
 builder.Services.AddScoped<
     IValidator<BookAppointmentRequestDto>,
     BookAppointmentValidator>();
 
+builder.Services.AddScoped<
+    IAppointmentPaymentService,
+    AppointmentPaymentService>();
+
+builder.Services.AddScoped<
+    IAppointmentOnlinePaymentService,
+    AppointmentOnlinePaymentService>();
+
+builder.Services.AddScoped<
+    IBlobStorageService,
+    BlobStorageService>();    
+    
 builder.Services.AddSingleton(TimeProvider.System);
 
 var jwtSecret =
@@ -96,7 +119,14 @@ if (!string.IsNullOrWhiteSpace(jwtSecret))
         });
 }
 
-builder.Services.AddAuthorization();
+builder.Services.AddOptions<PayHereSettings>()
+    .Bind(builder.Configuration.GetSection("PayHere"));
+
+builder.Services.AddSingleton<
+    IAppointmentPaymentGateway,
+    PayHerePaymentGateway>();
+
+builder.Services.AddAuthorizationPolicies();
 
 var app = builder.Build();
 
