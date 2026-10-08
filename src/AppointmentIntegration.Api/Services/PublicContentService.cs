@@ -23,7 +23,7 @@ public sealed class HomePageResponse
     public List<JsonElement> FeaturedDoctors { get; set; } = [];
     public List<string> SectionErrors { get; set; } = [];
 }
-public class PublicContentService(IHttpClientFactory clients, IOptions<PublicContentOptions> options, ILogger<PublicContentService> logger)
+public class PublicContentService(IHttpClientFactory clients, IOptions<PublicContentOptions> options, ILogger<PublicContentService> logger, Interfaces.IPharmacyInformationReader information)
 {
     public async Task<HomePageResponse> GetHomeAsync(CancellationToken token)
     {
@@ -32,6 +32,19 @@ public class PublicContentService(IHttpClientFactory clients, IOptions<PublicCon
         var doctors = LoadAsync(settings.DoctorBaseUrl, "doctors", settings.FeaturedDoctorIds.Select(id => id.ToString()).ToArray(), token);
         await Task.WhenAll(medicines, doctors);
         var home = new HomePageResponse { Introduction = settings.Introduction, Services = settings.Services, Notices = settings.Notices, FeaturedMedicines = medicines.Result.Items, FeaturedDoctors = doctors.Result.Items };
+        using var lookupBudget = CancellationTokenSource.CreateLinkedTokenSource(token);
+        lookupBudget.CancelAfter(TimeSpan.FromSeconds(2));
+        try {
+            var saved = await information.GetAsync(lookupBudget.Token).WaitAsync(lookupBudget.Token);
+            home.Introduction = saved.Introduction;
+            home.Services = saved.Services;
+        }
+        catch (OperationCanceledException) when (!token.IsCancellationRequested) {
+            logger.LogWarning("Using configured home information after the optional pharmacy information lookup timed out");
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException) {
+            logger.LogWarning(exception, "Using configured home information while pharmacy information storage is unavailable");
+        }
         if (medicines.Result.Failed) home.SectionErrors.Add("Featured medicines are temporarily unavailable.");
         if (doctors.Result.Failed) home.SectionErrors.Add("Featured doctors are temporarily unavailable.");
         return home;

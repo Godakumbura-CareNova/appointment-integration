@@ -8,6 +8,27 @@ using AppointmentIntegration.Api.Services;
 namespace AppointmentIntegration.Api.Tests.Integration;
 public class PublicHomeTests
 {
+    private sealed class SlowInformation : AppointmentIntegration.Api.Services.Interfaces.IPharmacyInformationReader
+    {
+        public async Task<AppointmentIntegration.Api.DTOs.PublicContent.PharmacyInformationDto> GetAsync(CancellationToken token)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(5), token);
+            return new() { Introduction = "Too late" };
+        }
+    }
+    [Fact]
+    public async Task SlowInformationStorageDoesNotDelayConfiguredHomeFallback()
+    {
+        using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.ConfigureServices(services => {
+            services.AddSingleton<AppointmentIntegration.Api.Services.Interfaces.IPharmacyInformationReader>(new SlowInformation());
+            services.AddHttpClient("PublicContent").ConfigurePrimaryHttpMessageHandler(() => new UnavailableHandler());
+        }));
+        using var client = factory.CreateClient();
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        var home = await client.GetFromJsonAsync<HomePageResponse>("/api/public/home");
+        Assert.Contains("CareNova", home!.Introduction);
+        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(4), "Optional database lookup delayed the home response.");
+    }
     private sealed class UnavailableHandler : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken token) =>
