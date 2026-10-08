@@ -11,6 +11,18 @@ public interface IBlobStorageService
     Task DeleteAsync(
         string blobName,
         CancellationToken cancellationToken = default);
+
+    Task<BlobDownloadResult> DownloadReceiptAsync(
+        string blobName,
+        CancellationToken cancellationToken = default);
+}
+
+public class BlobDownloadResult
+{
+    public Stream Content { get; set; } = Stream.Null;
+
+    public string ContentType { get; set; } =
+        "application/octet-stream";
 }
 
 public class BlobUploadResult

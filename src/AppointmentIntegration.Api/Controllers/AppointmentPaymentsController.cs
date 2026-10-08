@@ -3,7 +3,6 @@ using AppointmentIntegration.Api.DTOs.AppointmentPayment;
 using AppointmentIntegration.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using AppointmentIntegration.Api.Security;
 
 namespace AppointmentIntegration.Api.Controllers;
 
@@ -43,7 +42,8 @@ public class AppointmentPaymentsController : ControllerBase
         {
             return NotFound(new
             {
-                message = "Payment information was not found for this appointment."
+                message =
+                    "Payment information was not found for this appointment."
             });
         }
 
@@ -102,7 +102,8 @@ public class AppointmentPaymentsController : ControllerBase
                 StatusCodes.Status500InternalServerError,
                 new
                 {
-                    message = "Payment could not be processed. Please try again."
+                    message =
+                        "Payment could not be processed. Please try again."
                 });
         }
     }
@@ -126,7 +127,8 @@ public class AppointmentPaymentsController : ControllerBase
         {
             return BadRequest(new
             {
-                message = "Please select a bank transfer receipt."
+                message =
+                    "Please select a bank transfer receipt."
             });
         }
 
@@ -168,76 +170,23 @@ public class AppointmentPaymentsController : ControllerBase
                 StatusCodes.Status500InternalServerError,
                 new
                 {
-                    message = "Receipt upload failed. Please try again."
+                    message =
+                        "Receipt upload failed. Please try again."
                 });
         }
     }
 
-    [HttpPost("receipt/verify")]
-[Authorize(Policy = AuthorizationPolicies.PharmacyStaff)]
-public async Task<IActionResult> VerifyReceipt(
-    int appointmentId,
-    [FromBody] AppointmentReceiptVerificationDto request,
-    CancellationToken cancellationToken)
-{
-    if (!TryGetPatientId(out var staffId))
-    {
-        return Unauthorized(new
-        {
-            message = "A valid staff identity is required."
-        });
-    }
-
-    try
-    {
-        var payment =
-            await _paymentService.VerifyReceiptAsync(
-                staffId,
-                appointmentId,
-                request,
-                cancellationToken);
-
-        return Ok(payment);
-    }
-    catch (ArgumentException ex)
-    {
-        return BadRequest(new
-        {
-            message = ex.Message
-        });
-    }
-    catch (KeyNotFoundException ex)
-    {
-        return NotFound(new
-        {
-            message = ex.Message
-        });
-    }
-    catch (InvalidOperationException ex)
-    {
-        return Conflict(new
-        {
-            message = ex.Message
-        });
-    }
-    catch
-    {
-        return StatusCode(
-            StatusCodes.Status500InternalServerError,
-            new
-            {
-                message = "Receipt verification failed. Please try again."
-            });
-    }
-}
-
-    private bool TryGetPatientId(out Guid patientId)
+    private bool TryGetPatientId(
+        out Guid patientId)
     {
         patientId = Guid.Empty;
 
         var value =
-            User.FindFirstValue(ClaimTypes.NameIdentifier);
+            User.FindFirstValue(
+                ClaimTypes.NameIdentifier);
 
-        return Guid.TryParse(value, out patientId);
+        return Guid.TryParse(
+            value,
+            out patientId);
     }
 }

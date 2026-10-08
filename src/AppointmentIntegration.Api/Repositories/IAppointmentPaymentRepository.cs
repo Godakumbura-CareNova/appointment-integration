@@ -22,6 +22,13 @@ public interface IAppointmentPaymentRepository
         int appointmentPaymentId,
         CancellationToken cancellationToken = default);
 
+    Task<List<AppointmentReceipt>> GetPendingReceiptsAsync(
+        CancellationToken cancellationToken = default);
+
+    Task<AppointmentReceipt?> GetReceiptByIdAsync(
+        int receiptId,
+        CancellationToken cancellationToken = default);
+
     Task<List<AppointmentOnlinePaymentAttempt>> GetOnlineAttemptsAsync(
         int appointmentPaymentId,
         CancellationToken cancellationToken = default);

@@ -1,6 +1,8 @@
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using AppointmentIntegration.Api.Services.Interfaces;
+using ReceiptBlobDownloadResult =
+    AppointmentIntegration.Api.Services.Interfaces.BlobDownloadResult;
 
 namespace AppointmentIntegration.Api.Services;
 
@@ -17,6 +19,35 @@ public class BlobStorageService : IBlobStorageService
         _containerName =
             configuration["AzureBlobStorage:ReceiptContainer"]
             ?? "appointment-receipts";
+    }
+
+    public async Task<ReceiptBlobDownloadResult> DownloadReceiptAsync(
+        string blobName,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(blobName))
+        {
+            throw new ArgumentException(
+                "A valid receipt blob name is required.");
+        }
+
+        var containerClient =
+            GetContainerClient();
+
+        var blobClient =
+            containerClient.GetBlobClient(blobName);
+
+        var response =
+            await blobClient.DownloadStreamingAsync(
+                cancellationToken: cancellationToken);
+
+        return new ReceiptBlobDownloadResult
+        {
+            Content = response.Value.Content,
+            ContentType =
+                response.Value.Details.ContentType
+                ?? "application/octet-stream"
+        };
     }
 
     public async Task<BlobUploadResult> UploadReceiptAsync(

@@ -29,6 +29,17 @@ public class AppointmentPaymentRepository
                 cancellationToken);
     }
 
+    public Task<AppointmentPayment?> GetByAppointmentIdAsync(
+        int appointmentId,
+        CancellationToken cancellationToken = default)
+    {
+        return _dbContext.AppointmentPayments
+            .Include(x => x.Appointment)
+            .SingleOrDefaultAsync(
+                x => x.AppointmentId == appointmentId,
+                cancellationToken);
+    }
+
     public Task<Appointment?> GetAppointmentAsync(
         Guid patientId,
         int appointmentId,
@@ -47,65 +58,83 @@ public class AppointmentPaymentRepository
         CancellationToken cancellationToken = default)
     {
         return _dbContext.AppointmentReceipts
-            .Where(x => x.AppointmentPaymentId == appointmentPaymentId)
+            .Where(x =>
+                x.AppointmentPaymentId == appointmentPaymentId)
             .OrderByDescending(x => x.UploadedAtUtc)
             .ThenByDescending(x => x.Id)
             .FirstOrDefaultAsync(cancellationToken);
     }
 
-    public void Add(AppointmentPayment payment)
+    public Task<List<AppointmentReceipt>> GetPendingReceiptsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        return _dbContext.AppointmentReceipts
+            .Include(x => x.AppointmentPayment)
+            .ThenInclude(x => x!.Appointment)
+            .Where(x =>
+                x.Status ==
+                AppointmentReceiptStatus.PendingVerification)
+            .OrderBy(x => x.UploadedAtUtc)
+            .ToListAsync(cancellationToken);
+    }
+
+    public Task<AppointmentReceipt?> GetReceiptByIdAsync(
+        int receiptId,
+        CancellationToken cancellationToken = default)
+    {
+        return _dbContext.AppointmentReceipts
+            .Include(x => x.AppointmentPayment)
+            .ThenInclude(x => x!.Appointment)
+            .SingleOrDefaultAsync(
+                x => x.Id == receiptId,
+                cancellationToken);
+    }
+
+    public Task<List<AppointmentOnlinePaymentAttempt>> GetOnlineAttemptsAsync(
+        int appointmentPaymentId,
+        CancellationToken cancellationToken = default)
+    {
+        return _dbContext.AppointmentOnlinePaymentAttempts
+            .Where(x =>
+                x.AppointmentPaymentId == appointmentPaymentId)
+            .OrderBy(x => x.AttemptNumber)
+            .ToListAsync(cancellationToken);
+    }
+
+    public Task<AppointmentOnlinePaymentAttempt?> GetOnlineAttemptByGatewayReferenceAsync(
+        string gatewayReference,
+        CancellationToken cancellationToken = default)
+    {
+        return _dbContext.AppointmentOnlinePaymentAttempts
+            .Include(x => x.AppointmentPayment)
+            .ThenInclude(x => x!.Appointment)
+            .SingleOrDefaultAsync(
+                x => x.GatewayReference == gatewayReference,
+                cancellationToken);
+    }
+
+    public void Add(
+        AppointmentPayment payment)
     {
         _dbContext.AppointmentPayments.Add(payment);
     }
 
-    public void AddReceipt(AppointmentReceipt receipt)
+    public void AddReceipt(
+        AppointmentReceipt receipt)
     {
         _dbContext.AppointmentReceipts.Add(receipt);
     }
 
-     public Task<AppointmentPayment?> GetByAppointmentIdAsync(
-    int appointmentId,
-    CancellationToken cancellationToken = default)
-{
-    return _dbContext.AppointmentPayments
-        .Include(x => x.Appointment)
-        .SingleOrDefaultAsync(
-            x => x.AppointmentId == appointmentId,
-            cancellationToken);
-}
+    public void AddOnlineAttempt(
+        AppointmentOnlinePaymentAttempt attempt)
+    {
+        _dbContext.AppointmentOnlinePaymentAttempts.Add(attempt);
+    }
 
     public Task SaveChangesAsync(
         CancellationToken cancellationToken = default)
     {
-        return _dbContext.SaveChangesAsync(cancellationToken);
-    }
-
-    public Task<List<AppointmentOnlinePaymentAttempt>> GetOnlineAttemptsAsync(
-    int appointmentPaymentId,
-    CancellationToken cancellationToken = default)
-{
-    return _dbContext.AppointmentOnlinePaymentAttempts
-        .Where(x => x.AppointmentPaymentId == appointmentPaymentId)
-        .OrderBy(x => x.AttemptNumber)
-        .ToListAsync(cancellationToken);
-}
-
-public Task<AppointmentOnlinePaymentAttempt?> GetOnlineAttemptByGatewayReferenceAsync(
-    string gatewayReference,
-    CancellationToken cancellationToken = default)
-{
-    return _dbContext.AppointmentOnlinePaymentAttempts
-        .Include(x => x.AppointmentPayment)
-        .ThenInclude(x => x!.Appointment)
-        .SingleOrDefaultAsync(
-            x => x.GatewayReference == gatewayReference,
+        return _dbContext.SaveChangesAsync(
             cancellationToken);
-}
-
-public void AddOnlineAttempt(
-    AppointmentOnlinePaymentAttempt attempt)
-{
-    _dbContext.AppointmentOnlinePaymentAttempts.Add(attempt);
-}
-
+    }
 }
