@@ -23,7 +23,7 @@ public sealed class HomePageResponse
     public List<JsonElement> FeaturedDoctors { get; set; } = [];
     public List<string> SectionErrors { get; set; } = [];
 }
-public class PublicContentService(IHttpClientFactory clients, IOptions<PublicContentOptions> options, ILogger<PublicContentService> logger, Interfaces.IPharmacyInformationReader information)
+public class PublicContentService(IHttpClientFactory clients, IOptions<PublicContentOptions> options, ILogger<PublicContentService> logger, Lazy<Interfaces.IPharmacyInformationReader> information)
 {
     public async Task<HomePageResponse> GetHomeAsync(CancellationToken token)
     {
@@ -35,7 +35,7 @@ public class PublicContentService(IHttpClientFactory clients, IOptions<PublicCon
         using var lookupBudget = CancellationTokenSource.CreateLinkedTokenSource(token);
         lookupBudget.CancelAfter(TimeSpan.FromSeconds(2));
         try {
-            var saved = await information.GetAsync(lookupBudget.Token).WaitAsync(lookupBudget.Token);
+            var saved = await information.Value.GetAsync(lookupBudget.Token).WaitAsync(lookupBudget.Token);
             home.Introduction = saved.Introduction;
             home.Services = saved.Services;
         }

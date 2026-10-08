@@ -3,11 +3,31 @@ using System.Net.Http.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
 using AppointmentIntegration.Api.Services;
 
 namespace AppointmentIntegration.Api.Tests.Integration;
 public class PublicHomeTests
 {
+    [Fact]
+    public async Task MissingDatabaseConfigurationRetainsConfiguredHomeAndFeaturedContent()
+    {
+        using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => {
+            builder.UseEnvironment("Testing");
+            builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(
+                new Dictionary<string, string?> { ["ConnectionStrings:DefaultConnection"] = "" }));
+            builder.ConfigureServices(services => services.AddHttpClient("PublicContent")
+                .ConfigurePrimaryHttpMessageHandler(() => new MixedHandler()));
+        });
+        using var client = factory.CreateClient();
+        var response = await client.GetAsync("/api/public/home");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var home = await response.Content.ReadFromJsonAsync<HomePageResponse>();
+        Assert.Contains("CareNova", home!.Introduction);
+        Assert.NotEmpty(home.Services);
+        Assert.Equal("Vitamin C", Assert.Single(home.FeaturedMedicines).GetProperty("name").GetString());
+        Assert.Single(home.SectionErrors);
+    }
     private sealed class SlowInformation : AppointmentIntegration.Api.Services.Interfaces.IPharmacyInformationReader
     {
         public async Task<AppointmentIntegration.Api.DTOs.PublicContent.PharmacyInformationDto> GetAsync(CancellationToken token)

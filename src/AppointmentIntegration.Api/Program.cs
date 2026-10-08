@@ -45,6 +45,9 @@ builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationSc
 builder.Services.AddAuthorization(options => options.AddPolicy("Admin", policy => policy.RequireAuthenticatedUser().RequireRole("Admin")));
 builder.Services.AddScoped<PharmacyInformationService>();
 builder.Services.AddScoped<AppointmentIntegration.Api.Services.Interfaces.IPharmacyInformationReader>(services => services.GetRequiredService<PharmacyInformationService>());
+// Resolve optional storage inside the homepage fallback, including configuration failures.
+builder.Services.AddScoped(services => new Lazy<AppointmentIntegration.Api.Services.Interfaces.IPharmacyInformationReader>(
+    () => services.GetRequiredService<AppointmentIntegration.Api.Services.Interfaces.IPharmacyInformationReader>()));
 builder.Services.AddScoped<PharmacyInformationValidator>();
 builder.Services.AddScoped<ContactInquiryService>();
 builder.Services.AddScoped<ContactInquiryValidator>();
