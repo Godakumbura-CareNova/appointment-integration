@@ -8,14 +8,18 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.HttpOverrides;
+using AppointmentIntegration.Api.Clients;
+using AppointmentIntegration.Api.DTOs.Appointment;
+using AppointmentIntegration.Api.Repositories;
+using AppointmentIntegration.Api.Services.Interfaces;
+using FluentValidation;
+using AppointmentIntegration.Api.Security;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddJsonFile("publiccontent.json", optional: false, reloadOnChange: true);
 // Environment and command-line settings override the public-content defaults.
 builder.Configuration.AddEnvironmentVariables();
 builder.Configuration.AddCommandLine(args);
-
-// Add services to the container.
 
 builder.Services.AddControllers();
 builder.Services.Configure<ForwardedHeadersOptions>(options => {
@@ -73,11 +77,72 @@ builder.Services.AddCors(options => options.AddPolicy("PublicFrontend", policy =
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IAppointmentMutationScope, AppointmentMutationScope>();
+builder.Services.AddScoped<IAppointmentCancellationService, AppointmentCancellationService>();
+
+builder.Services.AddHttpClient<DoctorPaymentClient>(client =>
+{
+    var baseUrl =
+        builder.Configuration["DoctorPaymentService:BaseUrl"];
+
+    if (!string.IsNullOrWhiteSpace(baseUrl))
+    {
+        client.BaseAddress = new Uri(
+            baseUrl.TrimEnd('/') + "/");
+    }
+});
+
+builder.Services.AddScoped<
+    IAppointmentRepository,
+    AppointmentRepository>();
+
+builder.Services.AddScoped<
+    IAppointmentPaymentRepository,
+    AppointmentPaymentRepository>();
+
+builder.Services.AddScoped<
+    IAppointmentBookingService,
+    AppointmentBookingService>();
+
+builder.Services.AddScoped<
+    IValidator<BookAppointmentRequestDto>,
+    BookAppointmentValidator>();
+
+builder.Services.AddScoped<
+    IAppointmentPaymentService,
+    AppointmentPaymentService>();
+
+builder.Services.AddScoped<
+    IAppointmentOnlinePaymentService,
+    AppointmentOnlinePaymentService>();
+
+builder.Services.AddScoped<
+    IBlobStorageService,
+    BlobStorageService>();    
+    
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddScoped<IPatientAppointmentService, PatientAppointmentService>();
+builder.Services.AddScoped<IDoctorAppointmentService, DoctorAppointmentService>();
+builder.Services.AddHttpClient<IUserAuthClient, UserAuthClient>(client => {
+    if (Uri.TryCreate(builder.Configuration["UserAuthService:BaseUrl"], UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https")
+        client.BaseAddress = new Uri(uri.ToString().TrimEnd('/') + "/");
+    client.Timeout = TimeSpan.FromSeconds(10);
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+
+builder.Services.AddOptions<PayHereSettings>()
+    .Bind(builder.Configuration.GetSection("PayHere"));
+
+builder.Services.AddSingleton<
+    IAppointmentPaymentGateway,
+    PayHerePaymentGateway>();
+
+builder.Services.AddAuthorizationPolicies();
+
 var app = builder.Build();
 app.UseForwardedHeaders();
 Directory.CreateDirectory(Path.Combine(app.Environment.ContentRootPath, "wwwroot", "uploads", "pharmacy-information"));
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
