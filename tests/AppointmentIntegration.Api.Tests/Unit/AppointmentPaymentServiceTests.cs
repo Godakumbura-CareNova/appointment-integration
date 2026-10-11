@@ -6,6 +6,23 @@ namespace AppointmentIntegration.Api.Tests.Unit;
 
 public class AppointmentPaymentServiceTests
 {
+    [Fact]
+    public async Task NoShowCannotStartNewPaymentsOrSubmitReceipts()
+    {
+        using var f = new PaymentFixture(); await f.Select("BankTransfer");
+        (await f.Db.Appointments.SingleAsync()).Status = AppointmentStatus.NoShow; await f.Db.SaveChangesAsync();
+        await Assert.ThrowsAsync<InvalidOperationException>(() => f.Select("Cash"));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => f.Payments.UploadReceiptAsync(PaymentFixture.Patient, 1, PaymentFixture.Receipt()));
+        Assert.Empty(f.Storage.Files);
+    }
+
+    [Fact]
+    public async Task NoShowCannotStartAnOnlinePayment()
+    {
+        using var f = new PaymentFixture(); await f.Select("PaymentGateway");
+        (await f.Db.Appointments.SingleAsync()).Status = AppointmentStatus.NoShow; await f.Db.SaveChangesAsync();
+        await Assert.ThrowsAsync<InvalidOperationException>(() => f.Start()); Assert.Empty(f.Db.AppointmentOnlinePaymentAttempts);
+    }
     [Theory]
     [InlineData("Cash", AppointmentPaymentStatus.Pending)]
     [InlineData("BankTransfer", AppointmentPaymentStatus.AwaitingBankTransferReceipt)]

@@ -11,6 +11,7 @@ public class AppDbContext : DbContext
     }
 
     public DbSet<Appointment> Appointments => Set<Appointment>();
+    public DbSet<AppointmentStatusChange> AppointmentStatusChanges => Set<AppointmentStatusChange>();
 
     public DbSet<AppointmentPayment> AppointmentPayments =>
         Set<AppointmentPayment>();
@@ -54,8 +55,17 @@ public class AppDbContext : DbContext
 
         appointment.Property(x => x.Status)
             .HasConversion<string>()
+            .IsConcurrencyToken()
             .HasMaxLength(30)
             .IsRequired();
+
+        appointment.Property(x => x.UpdatedAtUtc).IsConcurrencyToken();
+        var change = modelBuilder.Entity<AppointmentStatusChange>();
+        change.HasKey(x => x.Id);
+        change.Property(x => x.PreviousStatus).IsRequired().HasMaxLength(30);
+        change.Property(x => x.NewStatus).IsRequired().HasMaxLength(30);
+        change.HasIndex(x => new { x.AppointmentId, x.ChangedAtUtc });
+        change.HasOne<Appointment>().WithMany().HasForeignKey(x => x.AppointmentId).OnDelete(DeleteBehavior.Restrict);
 
 
         var payment = modelBuilder.Entity<AppointmentPayment>();

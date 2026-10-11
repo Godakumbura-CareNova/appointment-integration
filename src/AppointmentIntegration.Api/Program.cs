@@ -86,6 +86,12 @@ builder.Services.AddScoped<
     
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IPatientAppointmentService, PatientAppointmentService>();
+builder.Services.AddScoped<IDoctorAppointmentService, DoctorAppointmentService>();
+builder.Services.AddHttpClient<IUserAuthClient, UserAuthClient>(client => {
+    if (Uri.TryCreate(builder.Configuration["UserAuthService:BaseUrl"], UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https")
+        client.BaseAddress = new Uri(uri.ToString().TrimEnd('/') + "/");
+    client.Timeout = TimeSpan.FromSeconds(10);
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 
 var jwtSecret =
     builder.Configuration["JwtSettings:Secret"];

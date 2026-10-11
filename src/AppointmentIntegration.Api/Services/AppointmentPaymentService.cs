@@ -63,6 +63,9 @@ public class AppointmentPaymentService : IAppointmentPaymentService
                 "The appointment could not be found.");
         }
 
+        if (appointment.Status == AppointmentStatus.NoShow)
+            throw new InvalidOperationException("Payment cannot be started for a No Show appointment.");
+
         var doctor =
             await _doctorPaymentClient.GetDoctorAsync(
                 appointment.DoctorId,
@@ -230,6 +233,9 @@ public class AppointmentPaymentService : IAppointmentPaymentService
             throw new KeyNotFoundException(
                 "Payment information was not found for this appointment.");
         }
+
+        if (payment.Appointment.Status == AppointmentStatus.NoShow)
+            throw new InvalidOperationException("Receipts cannot be submitted for a No Show appointment.");
 
         if (payment.Method !=
             AppointmentPaymentMethod.BankTransfer)

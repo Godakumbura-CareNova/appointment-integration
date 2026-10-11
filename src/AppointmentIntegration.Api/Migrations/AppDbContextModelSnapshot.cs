@@ -59,11 +59,13 @@ namespace AppointmentIntegration.Api.Migrations
                         .HasColumnType("char(36)");
 
                     b.Property<string>("Status")
+                        .IsConcurrencyToken()
                         .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("varchar(30)");
 
                     b.Property<DateTime?>("UpdatedAtUtc")
+                        .IsConcurrencyToken()
                         .HasColumnType("datetime(6)");
 
                     b.HasKey("Id");
@@ -258,6 +260,40 @@ namespace AppointmentIntegration.Api.Migrations
                     b.ToTable("AppointmentReceipts");
                 });
 
+            modelBuilder.Entity("AppointmentIntegration.Api.Models.AppointmentStatusChange", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AppointmentId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("ChangedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid>("DoctorId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("NewStatus")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<string>("PreviousStatus")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AppointmentId", "ChangedAtUtc");
+
+                    b.ToTable("AppointmentStatusChanges");
+                });
+
             modelBuilder.Entity("AppointmentIntegration.Api.Models.AppointmentOnlinePaymentAttempt", b =>
                 {
                     b.HasOne("AppointmentIntegration.Api.Models.AppointmentPayment", "AppointmentPayment")
@@ -289,6 +325,15 @@ namespace AppointmentIntegration.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("AppointmentPayment");
+                });
+
+            modelBuilder.Entity("AppointmentIntegration.Api.Models.AppointmentStatusChange", b =>
+                {
+                    b.HasOne("AppointmentIntegration.Api.Models.Appointment", null)
+                        .WithMany()
+                        .HasForeignKey("AppointmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }

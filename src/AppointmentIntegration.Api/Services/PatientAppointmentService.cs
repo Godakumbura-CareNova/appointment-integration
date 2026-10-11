@@ -56,7 +56,7 @@ public sealed class PatientAppointmentService(AppDbContext db, TimeProvider cloc
     {
         var status = Normalize<AppointmentStatus>(appointment.Status)!;
         var validTime = appointment.AppointmentStartUtc != default && appointment.AppointmentEndUtc > appointment.AppointmentStartUtc;
-        var section = status is "Completed" or "Cancelled"
+        var section = status is "Completed" or "Cancelled" or "NoShow"
             ? "Previous"
             : status == "Unavailable" || !validTime ? "Unavailable"
             : appointment.AppointmentEndUtc <= now ? "Previous" : "Upcoming";

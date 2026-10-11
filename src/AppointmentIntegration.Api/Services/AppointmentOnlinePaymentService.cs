@@ -60,6 +60,9 @@ public class AppointmentOnlinePaymentService
                 "Payment information was not found for this appointment.");
         }
 
+        if (payment.Appointment.Status == AppointmentStatus.NoShow)
+            throw new InvalidOperationException("Payment cannot be started for a No Show appointment.");
+
         if (payment.Method !=
             AppointmentPaymentMethod.PaymentGateway)
         {
