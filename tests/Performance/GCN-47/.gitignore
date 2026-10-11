@@ -1,0 +1,15 @@
+# Generated, local-only or environment-specific files of the GCN-47 performance suite: never commit.
+results/
+logs/
+evidence/
+fixtures/*.json
+fixtures/*.sql
+fixtures/previous-*
+gcn47-migrations-preview.sql
+__pycache__/
+*.jtl
+*.trx
+*.pid
+*.env
+.env
+*.log

@@ -1,0 +1,49 @@
+{
+  "total_http_requests": 5,
+  "iterations_per_scenario": 1,
+  "threads_per_scenario": 1,
+  "note": "A single request per scenario proves behaviour for ONE input each. It is not a load, concurrency or performance test; the 3000 ms limit is a sanity cap only.",
+  "scenarios": {
+    "JM-01": {
+      "name": "Doctor appointment list",
+      "method": "GET",
+      "path": "/api/doctor/appointments",
+      "role": "Doctor (doctor 1)",
+      "expected_status": 200,
+      "expected_requests": 1
+    },
+    "JM-02": {
+      "name": "Assigned appointment details",
+      "method": "GET",
+      "path": "/api/doctor/appointments/47001",
+      "role": "Doctor (doctor 1)",
+      "expected_status": 200,
+      "expected_requests": 1
+    },
+    "JM-03": {
+      "name": "Another doctor's appointment access",
+      "method": "GET",
+      "path": "/api/doctor/appointments/47101",
+      "role": "Doctor (doctor 1; appointment belongs to doctor 2)",
+      "expected_status": 404,
+      "expected_requests": 1
+    },
+    "JM-04": {
+      "name": "Non-Doctor access (Patient role)",
+      "method": "GET",
+      "path": "/api/doctor/appointments",
+      "role": "Patient",
+      "expected_status": 403,
+      "expected_requests": 1
+    },
+    "JM-05": {
+      "name": "Valid appointment status update",
+      "method": "PATCH",
+      "path": "/api/doctor/appointments/47002/status",
+      "role": "Doctor (doctor 1)",
+      "expected_status": 200,
+      "expected_requests": 1,
+      "database_verification": "read-only SQL after the run: exactly one audit row (Booked -> Confirmed, doctor 1, ChangedAtUtc = Appointments.UpdatedAtUtc = response updatedAtUtc), nothing else changed"
+    }
+  }
+}
