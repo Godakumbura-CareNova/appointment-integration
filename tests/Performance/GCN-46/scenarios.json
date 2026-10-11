@@ -1,0 +1,96 @@
+{
+  "targets_label": "provisional QA target, not an official product requirement",
+  "note": "Thresholds are fixed before any run and are never tuned after results. Content/isolation assertion failures (HTTP 200 with wrong data) are always FAIL regardless of the error-rate allowance.",
+  "per_sample_hard_cap_ms": {
+    "functional": 1500,
+    "load": 5000
+  },
+  "scenarios": {
+    "SETUP": {
+      "name": "Environment check, fixtures, tokens (not scored)",
+      "phase": "any",
+      "expected": 1
+    },
+    "ENV": {
+      "name": "Ordering observation (not scored)",
+      "phase": "any",
+      "expected": 1
+    },
+    "JM-01": {
+      "name": "Patient appointment list under normal load",
+      "phase": "functional",
+      "expected": 300,
+      "avg_ms": 150,
+      "p95_ms": 400
+    },
+    "JM-02": {
+      "name": "Patient appointment details under normal load",
+      "phase": "functional",
+      "expected": 300,
+      "avg_ms": 100,
+      "p95_ms": 300
+    },
+    "JM-03": {
+      "name": "Concurrent patient appointment list requests",
+      "phase": "functional",
+      "expected": 100,
+      "avg_ms": 400,
+      "p95_ms": 800
+    },
+    "JM-04": {
+      "name": "Data integrity and categorization under load",
+      "phase": "functional",
+      "expected": 750,
+      "avg_ms": 200,
+      "p95_ms": 500
+    },
+    "JM-05": {
+      "name": "Missing, invalid or expired token handling",
+      "phase": "functional",
+      "expected": 160,
+      "avg_ms": 100,
+      "p95_ms": 300,
+      "kind": "authorization"
+    },
+    "JM-06": {
+      "name": "Cross-patient data isolation",
+      "phase": "functional",
+      "expected": 320,
+      "avg_ms": 150,
+      "p95_ms": 400,
+      "kind": "isolation"
+    },
+    "JM-07": {
+      "name": "Increased load and recovery",
+      "phase": "load",
+      "kind": "load",
+      "steps": {
+        "JM-07a": {
+          "name": "baseline (5 users, 45 s)",
+          "min_samples": 500,
+          "avg_ms": 150,
+          "p95_ms": 400,
+          "max_error_pct": 0
+        },
+        "JM-07b": {
+          "name": "increased (10 users, 60 s)",
+          "min_samples": 1200,
+          "p95_ms": 1500,
+          "max_error_pct": 1
+        },
+        "JM-07c": {
+          "name": "peak (20 users, 60 s; first run capped at 20)",
+          "min_samples": 2400,
+          "p95_ms": 3000,
+          "max_error_pct": 1
+        },
+        "JM-07d": {
+          "name": "recovery (5 users, 45 s)",
+          "min_samples": 500,
+          "max_error_pct": 0,
+          "recovery_p95": "max(500 ms, 1.5 x baseline p95)"
+        }
+      }
+    }
+  }
+}

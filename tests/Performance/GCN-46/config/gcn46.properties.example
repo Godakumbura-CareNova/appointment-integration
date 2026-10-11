@@ -1,0 +1,43 @@
+# GCN-46 JMeter configuration EXAMPLE (safe for GitHub: no secrets, no passwords, no tokens).
+# The real secrets are generated locally by gcn46-make-test-secrets.sh into a mode-600 file OUTSIDE every git work tree
+# (see README: GCN46_JWT_SECRET and GCN46_DB_PASSWORD, never committed, never printed, never placed in the plan).
+# These values are documented defaults; the scripts keep them as readonly constants and the plan hard-codes them. Change them only together in gcn46-common.sh and gen_gcn46_jmx.py.
+
+# --- isolated environment (separate from GCN-45 / GCN-49 / shared QA)
+database.name=carenova_appointment_gcn46_qa
+database.user=gcn46_qa
+database.host=127.0.0.1
+database.port=3306
+backend.port=5246
+jmeter.stopPort=4546
+
+# --- JMeter properties passed on the command line by run-gcn46-jmeter.sh
+# -Jphase=functional|load    -JfixturesFile=fixtures/fixtures.json    -JevidenceDir=evidence
+
+# --- PROVISIONAL QA TARGETS (not official product requirements; fixed before the first run; never tuned afterwards). Authoritative copy: scenarios.json
+JM-01.avg_ms=150
+JM-01.p95_ms=400
+JM-02.avg_ms=100
+JM-02.p95_ms=300
+JM-03.avg_ms=400
+JM-03.p95_ms=800
+JM-04.avg_ms=200
+JM-04.p95_ms=500
+JM-05.avg_ms=100
+JM-05.p95_ms=300
+JM-06.avg_ms=150
+JM-06.p95_ms=400
+JM-07.baseline.users=5
+JM-07.increased.users=10
+JM-07.peak.users=20
+JM-07.recovery.users=5
+JM-07.increased.max_error_pct=1
+JM-07.peak.max_error_pct=1
+JM-07.recovery.p95=max(500ms, 1.5 x baseline p95)
+
+# --- load-safety limits of gcn46_monitor.py (two consecutive polls)
+safety.load1.max=9
+safety.memory_free_pct.min=10
+safety.window_error_pct.max=10
+safety.window_p95_ms.max=5000
+safety.backend_rss_mb.max=1536
