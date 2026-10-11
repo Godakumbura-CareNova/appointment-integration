@@ -35,3 +35,17 @@ dotnet ef database update --project src/AppointmentIntegration.Api --configurati
 ```
 
 Do not commit connection strings or tokens. Tests use isolated SQLite/InMemory databases; run `dotnet test AppointmentIntegration.sln --configuration Release`.
+# GCN-48 patient cancellation
+
+Patient/User-authenticated endpoints:
+
+- `GET /api/patient/appointments/{appointmentId}/cancellation`: current eligibility, restriction/refund explanation, confirmation version and any persisted cancellation result.
+- `POST /api/patient/appointments/{appointmentId}/cancellation`: `{ "expectedVersion": "<GET version>", "acknowledgeNoRefund": false, "reason": "optional, max 500 characters" }`.
+
+Only the owning patient can read/cancel. Booked/Confirmed appointments can be cancelled strictly before their start. Unpaid cash or no payment selection requires no refund. Paid cash is restricted. A verified bank transfer is eligible for a manual refund at least six hours before start; within six hours cancellation remains possible without refund and requires acknowledgement. Receipt verification and active gateway checkout block cancellation. Successful gateway payment cannot be cancelled by patients. Unknown/inconsistent financial states fail closed. Stale eligibility returns 409 and requires refresh/reconfirmation; repeated confirmed cancellation returns its stored result.
+
+Apply `20261011100356_GCN48AppointmentCancellation` before starting the updated API. It adds cancellation, manual refund and late-payment reconciliation records. Existing paid payments remain Successful; PendingManualProcessing means refund eligibility is recorded, not money returned. No refund administration UI or automatic bank transfer is included. Late gateway money after cancellation is retained in its original attempt and flagged PendingManualReview; switching to cash must not mislabel gateway money as cash paid.
+
+All appointment/payment mutation paths share a database-backed appointment lock and transaction. Receipt storage I/O happens before final locking/revalidation; orphan uploads are removed if cancellation won. Cancelled appointments retain their reserved slot and history; slot reuse is not part of this story. Cancellation is visible in existing patient/doctor views on refresh, and cancelled payment pages are history-only.
+
+The existing production appointment gateway routing prerequisite documented for GCN-47 still applies. Keep development credentials and uploaded files out of feature commits.

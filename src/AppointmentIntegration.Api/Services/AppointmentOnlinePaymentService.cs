@@ -16,17 +16,20 @@ public class AppointmentOnlinePaymentService
     private readonly IAppointmentPaymentGateway _gateway;
     private readonly PayHereSettings _settings;
     private readonly TimeProvider _timeProvider;
+    private readonly IAppointmentMutationScope? _mutations;
 
     public AppointmentOnlinePaymentService(
         IAppointmentPaymentRepository repository,
         IAppointmentPaymentGateway gateway,
         IOptions<PayHereSettings> settings,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        IAppointmentMutationScope? mutations = null)
     {
         _repository = repository;
         _gateway = gateway;
         _settings = settings.Value;
         _timeProvider = timeProvider;
+        _mutations = mutations;
     }
 
     private int MaxAttempts =>
@@ -46,6 +49,7 @@ public class AppointmentOnlinePaymentService
         }
 
         ValidateBilling(request);
+        await using var mutation = _mutations is null ? null : await _mutations.BeginAsync(appointmentId, cancellationToken);
 
         var payment =
             await _repository.GetByAppointmentAsync(
@@ -62,6 +66,8 @@ public class AppointmentOnlinePaymentService
 
         if (payment.Appointment.Status == AppointmentStatus.NoShow)
             throw new InvalidOperationException("Payment cannot be started for a No Show appointment.");
+        if (payment.Appointment.Status == AppointmentStatus.Cancelled)
+            throw new InvalidOperationException("Payment cannot be started for a cancelled appointment.");
 
         if (payment.Method !=
             AppointmentPaymentMethod.PaymentGateway)
@@ -193,6 +199,7 @@ public class AppointmentOnlinePaymentService
         await _repository.SaveChangesAsync(
             cancellationToken);
 
+        if (mutation is not null) await mutation.CommitAsync(cancellationToken);
         return new AppointmentOnlinePaymentSessionDto
         {
             AttemptId = attempt.Id,
@@ -266,6 +273,7 @@ public class AppointmentOnlinePaymentService
         int attemptId,
         CancellationToken cancellationToken = default)
     {
+        await using var mutation = _mutations is null ? null : await _mutations.BeginAsync(appointmentId, cancellationToken);
         var payment =
             await _repository.GetByAppointmentAsync(
                 patientId,
@@ -310,15 +318,18 @@ public class AppointmentOnlinePaymentService
 
             attempt.CompletedAtUtc = now;
 
-            payment.Status =
-                AppointmentPaymentStatus.Failed;
-
-            payment.UpdatedAtUtc = now;
+            // Closing another checkout must never undo a payment already confirmed by the gateway.
+            if (payment.Status != AppointmentPaymentStatus.Successful)
+            {
+                payment.Status = AppointmentPaymentStatus.Failed;
+                payment.UpdatedAtUtc = now;
+            }
 
             await _repository.SaveChangesAsync(
                 cancellationToken);
         }
 
+        if (mutation is not null) await mutation.CommitAsync(cancellationToken);
         return ToResult(
             payment,
             attempt,
@@ -337,6 +348,11 @@ public class AppointmentOnlinePaymentService
                 result.OrderId,
                 cancellationToken);
 
+        if (attempt is null) return false;
+        await using var mutation = _mutations is null ? null : await _mutations.BeginAsync(attempt.AppointmentId, cancellationToken);
+        // Lock acquisition invalidates all tracked pre-lock state.
+        attempt = await _repository.GetOnlineAttemptByGatewayReferenceAsync(result.OrderId, cancellationToken);
+
         if (attempt?.AppointmentPayment is not { } payment)
         {
             return false;
@@ -349,6 +365,24 @@ public class AppointmentOnlinePaymentService
         }
         if (payment.Method != AppointmentPaymentMethod.PaymentGateway)
         {
+            // After cancellation, retain actual money received for the original checkout.
+            // Its amount belongs to that attempt, not the replacement cash/bank payment.
+            if (payment.Appointment?.Status == AppointmentStatus.Cancelled && result.StatusCode == 2
+                && attempt.Status != AppointmentOnlinePaymentAttemptStatus.Succeeded
+                && Math.Abs(result.Amount - attempt.Amount) <= 0.001m
+                && string.Equals(result.Currency, attempt.Currency, StringComparison.OrdinalIgnoreCase))
+            {
+                var receivedAt = _timeProvider.GetUtcNow().UtcDateTime;
+                attempt.Status = AppointmentOnlinePaymentAttemptStatus.Succeeded;
+                attempt.GatewayPaymentId = Truncate(result.PaymentId, 50);
+                attempt.GatewayPaymentMethod = Truncate(result.Method, 30);
+                attempt.CompletedAtUtc = receivedAt; attempt.FailureCode = null; attempt.FailureMessage = null;
+                _mutations?.RecordLateGatewayPayment(attempt.AppointmentId, payment.Id, attempt.Id, receivedAt);
+                await _repository.SaveChangesAsync(cancellationToken);
+                if (mutation is not null) await mutation.CommitAsync(cancellationToken);
+                return true;
+            }
+            if (payment.Appointment?.Status == AppointmentStatus.Cancelled && attempt.Status == AppointmentOnlinePaymentAttemptStatus.Succeeded) return true;
             return false;
         }
 
@@ -394,7 +428,7 @@ public class AppointmentOnlinePaymentService
 
             await _repository.SaveChangesAsync(
                 cancellationToken);
-
+            if (mutation is not null) await mutation.CommitAsync(cancellationToken);
             return true;
         }
 
@@ -413,6 +447,8 @@ public class AppointmentOnlinePaymentService
                     AppointmentPaymentStatus.Successful;
 
                 payment.UpdatedAtUtc = now;
+                if (payment.Appointment?.Status == AppointmentStatus.Cancelled)
+                    _mutations?.RecordLateGatewayPayment(attempt.AppointmentId, payment.Id, attempt.Id, now);
                 break;
 
             // Cancelled
@@ -461,13 +497,13 @@ public class AppointmentOnlinePaymentService
             default:
                 await _repository.SaveChangesAsync(
                     cancellationToken);
-
+                if (mutation is not null) await mutation.CommitAsync(cancellationToken);
                 return true;
         }
 
         await _repository.SaveChangesAsync(
             cancellationToken);
-
+        if (mutation is not null) await mutation.CommitAsync(cancellationToken);
         return true;
     }
 
@@ -542,6 +578,7 @@ public class AppointmentOnlinePaymentService
             Outcome = outcome,
             Message = message,
             CanRetry =
+                payment.Appointment?.Status != AppointmentStatus.Cancelled &&
                 payment.Status !=
                     AppointmentPaymentStatus.Successful
                 &&

@@ -14,17 +14,20 @@ public class AppointmentPaymentService : IAppointmentPaymentService
     private readonly DoctorPaymentClient _doctorPaymentClient;
     private readonly IBlobStorageService _blobStorageService;
     private readonly TimeProvider _timeProvider;
+    private readonly IAppointmentMutationScope? _mutations;
 
     public AppointmentPaymentService(
         IAppointmentPaymentRepository repository,
         DoctorPaymentClient doctorPaymentClient,
         IBlobStorageService blobStorageService,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        IAppointmentMutationScope? mutations = null)
     {
         _repository = repository;
         _doctorPaymentClient = doctorPaymentClient;
         _blobStorageService = blobStorageService;
         _timeProvider = timeProvider;
+        _mutations = mutations;
     }
 
     public async Task<AppointmentPaymentResponseDto> SelectPaymentMethodAsync(
@@ -51,6 +54,7 @@ public class AppointmentPaymentService : IAppointmentPaymentService
                 "Select a valid payment method: Cash, BankTransfer, or PaymentGateway.");
         }
 
+        await using var mutation = _mutations is null ? null : await _mutations.BeginAsync(appointmentId, cancellationToken);
         var appointment =
             await _repository.GetAppointmentAsync(
                 patientId,
@@ -65,6 +69,8 @@ public class AppointmentPaymentService : IAppointmentPaymentService
 
         if (appointment.Status == AppointmentStatus.NoShow)
             throw new InvalidOperationException("Payment cannot be started for a No Show appointment.");
+        if (appointment.Status == AppointmentStatus.Cancelled)
+            throw new InvalidOperationException("Payment cannot be started for a cancelled appointment.");
 
         var doctor =
             await _doctorPaymentClient.GetDoctorAsync(
@@ -149,6 +155,7 @@ public class AppointmentPaymentService : IAppointmentPaymentService
                 "The payment was updated by another request. Refresh and try again.");
         }
 
+        if (mutation is not null) await mutation.CommitAsync(cancellationToken);
         return ToResponse(payment, appointment);
     }
 
@@ -236,6 +243,8 @@ public class AppointmentPaymentService : IAppointmentPaymentService
 
         if (payment.Appointment.Status == AppointmentStatus.NoShow)
             throw new InvalidOperationException("Receipts cannot be submitted for a No Show appointment.");
+        if (payment.Appointment.Status == AppointmentStatus.Cancelled)
+            throw new InvalidOperationException("Receipts cannot be submitted for a cancelled appointment.");
 
         if (payment.Method !=
             AppointmentPaymentMethod.BankTransfer)
@@ -274,6 +283,10 @@ public class AppointmentPaymentService : IAppointmentPaymentService
                     receipt.ContentType,
                     cancellationToken);
 
+            // Blob I/O completes before locking. Re-read every mutable field after the lock.
+            await using var mutation = _mutations is null ? null : await _mutations.BeginAsync(appointmentId, cancellationToken);
+            payment = ValidateReceiptPayment(await _repository.GetByAppointmentAsync(patientId, appointmentId, cancellationToken));
+
             var now =
                 _timeProvider.GetUtcNow().UtcDateTime;
 
@@ -309,9 +322,10 @@ public class AppointmentPaymentService : IAppointmentPaymentService
             await _repository.SaveChangesAsync(
                 cancellationToken);
 
+            if (mutation is not null) await mutation.CommitAsync(cancellationToken);
             return ToResponse(
                 payment,
-                payment.Appointment);
+                payment.Appointment!);
         }
         catch
         {
@@ -351,6 +365,7 @@ public class AppointmentPaymentService : IAppointmentPaymentService
                 "A valid appointment is required.");
         }
 
+        await using var mutation = _mutations is null ? null : await _mutations.BeginAsync(appointmentId, cancellationToken);
         var payment =
             await _repository.GetByAppointmentIdAsync(
                 appointmentId,
@@ -437,6 +452,7 @@ public class AppointmentPaymentService : IAppointmentPaymentService
                 "The payment was updated by another request. Refresh and try again.");
         }
 
+        if (mutation is not null) await mutation.CommitAsync(cancellationToken);
         return ToResponse(
             payment,
             payment.Appointment);
@@ -455,6 +471,17 @@ public class AppointmentPaymentService : IAppointmentPaymentService
             _ => false
         };
         if (!valid) throw new ArgumentException("The receipt content is not a valid JPG, PNG, or PDF file. Please upload the correct receipt.");
+    }
+
+    private static AppointmentPayment ValidateReceiptPayment(AppointmentPayment? payment)
+    {
+        if (payment?.Appointment is null) throw new KeyNotFoundException("Payment information was not found for this appointment.");
+        if (payment.Appointment.Status is AppointmentStatus.NoShow or AppointmentStatus.Cancelled)
+            throw new InvalidOperationException("Receipts cannot be submitted for a closed appointment.");
+        if (payment.Method != AppointmentPaymentMethod.BankTransfer) throw new InvalidOperationException("Bank transfer is not the selected payment method.");
+        if (payment.Status == AppointmentPaymentStatus.Successful) throw new InvalidOperationException("This appointment payment has already been completed.");
+        if (payment.Status == AppointmentPaymentStatus.ReceiptUnderVerification) throw new InvalidOperationException("A receipt is already being verified.");
+        return payment;
     }
 
     private static bool TryParseMethod(

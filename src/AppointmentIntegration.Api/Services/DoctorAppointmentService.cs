@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AppointmentIntegration.Api.Services;
 
-public sealed class DoctorAppointmentService(AppDbContext db, TimeProvider clock, IUserAuthClient contacts, IHttpContextAccessor context, ILogger<DoctorAppointmentService> logger) : IDoctorAppointmentService
+public sealed class DoctorAppointmentService(AppDbContext db, TimeProvider clock, IUserAuthClient contacts, IHttpContextAccessor context, ILogger<DoctorAppointmentService> logger, IAppointmentMutationScope? mutations = null) : IDoctorAppointmentService
 {
     public async Task<DoctorAppointmentListDto> GetAppointmentsAsync(Guid doctorId, CancellationToken ct = default)
     {
@@ -93,6 +93,7 @@ public sealed class DoctorAppointmentService(AppDbContext db, TimeProvider clock
 
     public async Task<AppointmentStatusResultDto?> UpdateStatusAsync(Guid doctorId, int id, UpdateAppointmentStatusDto request, CancellationToken ct = default)
     {
+        await using var mutation = mutations is null ? null : await mutations.BeginAsync(id, ct);
         // Read the scalar status first: an unfamiliar stored enum must not crash a mutation.
         var current = await Query(doctorId).SingleOrDefaultAsync(x => x.Id == id, ct);
         if (current is null) return null;
@@ -109,6 +110,7 @@ public sealed class DoctorAppointmentService(AppDbContext db, TimeProvider clock
         db.AppointmentStatusChanges.Add(new() { AppointmentId = id, DoctorId = doctorId, PreviousStatus = current.Status, NewStatus = request.Status, ChangedAtUtc = timestamp });
         appointment.Status = Enum.Parse<AppointmentStatus>(request.Status); appointment.UpdatedAtUtc = timestamp;
         await db.SaveChangesAsync(ct);
+        if (mutation is not null) await mutation.CommitAsync(ct);
         return new(id, request.Status, timestamp);
     }
 }

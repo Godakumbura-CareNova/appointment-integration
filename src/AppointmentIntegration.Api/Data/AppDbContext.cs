@@ -11,6 +11,9 @@ public class AppDbContext : DbContext
     }
 
     public DbSet<Appointment> Appointments => Set<Appointment>();
+    public DbSet<AppointmentCancellation> AppointmentCancellations => Set<AppointmentCancellation>();
+    public DbSet<RefundRecord> RefundRecords => Set<RefundRecord>();
+    public DbSet<AppointmentPaymentReconciliation> AppointmentPaymentReconciliations => Set<AppointmentPaymentReconciliation>();
     public DbSet<AppointmentStatusChange> AppointmentStatusChanges => Set<AppointmentStatusChange>();
 
     public DbSet<AppointmentPayment> AppointmentPayments =>
@@ -25,6 +28,32 @@ public class AppDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        var cancellation = modelBuilder.Entity<AppointmentCancellation>();
+        cancellation.HasIndex(x => x.AppointmentId).IsUnique();
+        cancellation.Property(x => x.PreviousStatus).HasMaxLength(30);
+        cancellation.Property(x => x.Reason).HasMaxLength(500);
+        cancellation.Property(x => x.PaymentMethod).HasMaxLength(30);
+        cancellation.Property(x => x.PaymentStatus).HasMaxLength(40);
+        cancellation.Property(x => x.RefundOutcome).HasMaxLength(30);
+        cancellation.Property(x => x.DecisionMessage).HasMaxLength(500);
+        cancellation.Property(x => x.PaymentAmount).HasPrecision(12, 2);
+        cancellation.Property(x => x.RefundAmount).HasPrecision(12, 2);
+        cancellation.HasOne<Appointment>().WithMany().HasForeignKey(x => x.AppointmentId).OnDelete(DeleteBehavior.Restrict);
+        cancellation.HasOne<AppointmentPayment>().WithMany().HasForeignKey(x => x.PaymentId).OnDelete(DeleteBehavior.Restrict);
+        var refund = modelBuilder.Entity<RefundRecord>();
+        refund.HasIndex(x => x.CancellationId).IsUnique();
+        refund.Property(x => x.Amount).HasPrecision(12, 2);
+        refund.Property(x => x.Currency).HasMaxLength(3);
+        refund.Property(x => x.Status).HasMaxLength(40);
+        refund.HasOne(x => x.Cancellation).WithOne().HasForeignKey<RefundRecord>(x => x.CancellationId).OnDelete(DeleteBehavior.Restrict);
+        var reconciliation = modelBuilder.Entity<AppointmentPaymentReconciliation>();
+        reconciliation.HasIndex(x => x.AttemptId).IsUnique();
+        reconciliation.Property(x => x.Reason).HasMaxLength(80);
+        reconciliation.Property(x => x.Status).HasMaxLength(40);
+        reconciliation.HasOne<Appointment>().WithMany().HasForeignKey(x => x.AppointmentId).OnDelete(DeleteBehavior.Restrict);
+        reconciliation.HasOne<AppointmentPayment>().WithMany().HasForeignKey(x => x.PaymentId).OnDelete(DeleteBehavior.Restrict);
+        reconciliation.HasOne<AppointmentOnlinePaymentAttempt>().WithMany().HasForeignKey(x => x.AttemptId).OnDelete(DeleteBehavior.Restrict);
 
         var appointment = modelBuilder.Entity<Appointment>();
 

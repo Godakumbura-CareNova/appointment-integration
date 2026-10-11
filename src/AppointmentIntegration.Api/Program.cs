@@ -43,6 +43,8 @@ if (!string.IsNullOrWhiteSpace(connectionString))
 }
 
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IAppointmentMutationScope, AppointmentMutationScope>();
+builder.Services.AddScoped<IAppointmentCancellationService, AppointmentCancellationService>();
 
 builder.Services.AddHttpClient<DoctorPaymentClient>(client =>
 {

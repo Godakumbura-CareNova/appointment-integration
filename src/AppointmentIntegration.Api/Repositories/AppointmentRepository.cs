@@ -21,8 +21,7 @@ public class AppointmentRepository : IAppointmentRepository
             .AsNoTracking()
             .AnyAsync(
                 appointment =>
-                    appointment.DoctorAvailabilitySlotId == slotId &&
-                    appointment.Status != AppointmentStatus.Cancelled,
+                    appointment.DoctorAvailabilitySlotId == slotId,
                 cancellationToken);
     }
 

@@ -79,6 +79,71 @@ namespace AppointmentIntegration.Api.Migrations
                     b.ToTable("Appointments");
                 });
 
+            modelBuilder.Entity("AppointmentIntegration.Api.Models.AppointmentCancellation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AppointmentId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CancelledAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("DecisionMessage")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<Guid>("PatientId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<decimal>("PaymentAmount")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<int?>("PaymentId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PaymentMethod")
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<string>("PaymentStatus")
+                        .HasMaxLength(40)
+                        .HasColumnType("varchar(40)");
+
+                    b.Property<string>("PreviousStatus")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<decimal>("RefundAmount")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<string>("RefundOutcome")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AppointmentId")
+                        .IsUnique();
+
+                    b.HasIndex("PaymentId");
+
+                    b.ToTable("AppointmentCancellations");
+                });
+
             modelBuilder.Entity("AppointmentIntegration.Api.Models.AppointmentOnlinePaymentAttempt", b =>
                 {
                     b.Property<int>("Id")
@@ -195,6 +260,48 @@ namespace AppointmentIntegration.Api.Migrations
                     b.ToTable("AppointmentPayments");
                 });
 
+            modelBuilder.Entity("AppointmentIntegration.Api.Models.AppointmentPaymentReconciliation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AppointmentId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("AttemptId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("PaymentId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("varchar(80)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("varchar(40)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AppointmentId");
+
+                    b.HasIndex("AttemptId")
+                        .IsUnique();
+
+                    b.HasIndex("PaymentId");
+
+                    b.ToTable("AppointmentPaymentReconciliations");
+                });
+
             modelBuilder.Entity("AppointmentIntegration.Api.Models.AppointmentReceipt", b =>
                 {
                     b.Property<int>("Id")
@@ -294,6 +401,56 @@ namespace AppointmentIntegration.Api.Migrations
                     b.ToTable("AppointmentStatusChanges");
                 });
 
+            modelBuilder.Entity("AppointmentIntegration.Api.Models.RefundRecord", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<int>("CancellationId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("varchar(3)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("varchar(40)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CancellationId")
+                        .IsUnique();
+
+                    b.ToTable("RefundRecords");
+                });
+
+            modelBuilder.Entity("AppointmentIntegration.Api.Models.AppointmentCancellation", b =>
+                {
+                    b.HasOne("AppointmentIntegration.Api.Models.Appointment", null)
+                        .WithMany()
+                        .HasForeignKey("AppointmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("AppointmentIntegration.Api.Models.AppointmentPayment", null)
+                        .WithMany()
+                        .HasForeignKey("PaymentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
             modelBuilder.Entity("AppointmentIntegration.Api.Models.AppointmentOnlinePaymentAttempt", b =>
                 {
                     b.HasOne("AppointmentIntegration.Api.Models.AppointmentPayment", "AppointmentPayment")
@@ -316,6 +473,27 @@ namespace AppointmentIntegration.Api.Migrations
                     b.Navigation("Appointment");
                 });
 
+            modelBuilder.Entity("AppointmentIntegration.Api.Models.AppointmentPaymentReconciliation", b =>
+                {
+                    b.HasOne("AppointmentIntegration.Api.Models.Appointment", null)
+                        .WithMany()
+                        .HasForeignKey("AppointmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("AppointmentIntegration.Api.Models.AppointmentOnlinePaymentAttempt", null)
+                        .WithMany()
+                        .HasForeignKey("AttemptId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("AppointmentIntegration.Api.Models.AppointmentPayment", null)
+                        .WithMany()
+                        .HasForeignKey("PaymentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("AppointmentIntegration.Api.Models.AppointmentReceipt", b =>
                 {
                     b.HasOne("AppointmentIntegration.Api.Models.AppointmentPayment", "AppointmentPayment")
@@ -334,6 +512,17 @@ namespace AppointmentIntegration.Api.Migrations
                         .HasForeignKey("AppointmentId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("AppointmentIntegration.Api.Models.RefundRecord", b =>
+                {
+                    b.HasOne("AppointmentIntegration.Api.Models.AppointmentCancellation", "Cancellation")
+                        .WithOne()
+                        .HasForeignKey("AppointmentIntegration.Api.Models.RefundRecord", "CancellationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Cancellation");
                 });
 #pragma warning restore 612, 618
         }
