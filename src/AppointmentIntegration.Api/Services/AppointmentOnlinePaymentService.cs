@@ -339,6 +339,16 @@ public class AppointmentOnlinePaymentService
             return false;
         }
 
+        // A replaced checkout cannot undo a confirmed payment or pay a different method.
+        if (payment.Status == AppointmentPaymentStatus.Successful)
+        {
+            return true;
+        }
+        if (payment.Method != AppointmentPaymentMethod.PaymentGateway)
+        {
+            return false;
+        }
+
         /*
          * Ignore duplicate final callbacks.
          */
@@ -365,6 +375,7 @@ public class AppointmentOnlinePaymentService
         if (Math.Abs(
                 result.Amount -
                 attempt.Amount) > 0.001m
+            || Math.Abs(payment.Amount - attempt.Amount) > 0.001m
             ||
             !string.Equals(
                 result.Currency,

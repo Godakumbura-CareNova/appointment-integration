@@ -254,6 +254,8 @@ public class AppointmentPaymentService : IAppointmentPaymentService
 
         BlobUploadResult? uploadedBlob = null;
 
+        await ValidateReceiptContentAsync(receipt, cancellationToken);
+
         try
         {
             await using var stream =
@@ -432,6 +434,21 @@ public class AppointmentPaymentService : IAppointmentPaymentService
         return ToResponse(
             payment,
             payment.Appointment);
+    }
+
+    private static async Task ValidateReceiptContentAsync(IFormFile receipt, CancellationToken cancellationToken)
+    {
+        await using var stream = receipt.OpenReadStream();
+        var header = new byte[8];
+        var count = await stream.ReadAtLeastAsync(header, header.Length, throwOnEndOfStream: false, cancellationToken);
+        var valid = receipt.ContentType.ToLowerInvariant() switch
+        {
+            "application/pdf" => count >= 5 && header.AsSpan(0, 5).SequenceEqual("%PDF-"u8),
+            "image/jpeg" => count >= 3 && header[0] == 0xff && header[1] == 0xd8 && header[2] == 0xff,
+            "image/png" => count >= 8 && header.AsSpan().SequenceEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }),
+            _ => false
+        };
+        if (!valid) throw new ArgumentException("The receipt content is not a valid JPG, PNG, or PDF file. Please upload the correct receipt.");
     }
 
     private static bool TryParseMethod(
