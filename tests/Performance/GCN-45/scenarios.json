@@ -1,0 +1,83 @@
+{
+  "scenarios": {
+    "SETUP": {
+      "name": "Environment check and test identities (not scored)",
+      "type": "setup",
+      "phase": "any",
+      "expected_samples": 1
+    },
+    "ENV": {
+      "name": "Stub reset (not scored)",
+      "type": "setup",
+      "phase": "any",
+      "expected_samples": 1
+    },
+    "FX": {
+      "name": "Fixture seeding (not scored)",
+      "type": "write",
+      "phase": "seed",
+      "expected_samples": 7
+    },
+    "JM-01": {
+      "name": "Payment status read under load",
+      "type": "read",
+      "phase": "readonly",
+      "expected_samples": 100
+    },
+    "JM-02": {
+      "name": "Authorization and ownership on payment status",
+      "type": "read",
+      "phase": "readonly",
+      "expected_samples": 11
+    },
+    "JM-03": {
+      "name": "Staff authorization and receipts list under load",
+      "type": "read",
+      "phase": "readonly",
+      "expected_samples": 107
+    },
+    "JM-04": {
+      "name": "Online attempt read and webhook rejection",
+      "type": "read",
+      "phase": "readonly",
+      "expected_samples": 10
+    },
+    "JM-05": {
+      "name": "Booking, method selection and business rules",
+      "type": "write",
+      "phase": "state",
+      "expected_samples": 15
+    },
+    "JM-06": {
+      "name": "Online payment lifecycle and duplicate handling",
+      "type": "write",
+      "phase": "state",
+      "expected_samples": 17
+    },
+    "JM-07": {
+      "name": "Concurrency (same appointment, notification burst, parallel patients)",
+      "type": "write",
+      "phase": "concurrent",
+      "expected_samples": 27
+    },
+    "JM-08": {
+      "name": "Dependency failure and recovery",
+      "type": "write",
+      "phase": "state",
+      "expected_samples": 13
+    }
+  },
+  "thresholds": {
+    "read": {
+      "avg_ms": 300,
+      "p95_ms": 800
+    },
+    "write": {
+      "avg_ms": 600,
+      "p95_ms": 1500
+    },
+    "setup": {}
+  },
+  "per_sample_hard_cap_ms": 3000,
+  "note": "thresholds are fixed before any run and are never tuned after results"
+}
