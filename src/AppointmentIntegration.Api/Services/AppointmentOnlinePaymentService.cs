@@ -445,6 +445,7 @@ public class AppointmentOnlinePaymentService
 
                 payment.Status =
                     AppointmentPaymentStatus.Successful;
+                payment.ConfirmedAtUtc ??= now;
 
                 payment.UpdatedAtUtc = now;
                 if (payment.Appointment?.Status == AppointmentStatus.Cancelled)

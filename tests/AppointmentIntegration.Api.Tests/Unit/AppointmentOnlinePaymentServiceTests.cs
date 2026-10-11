@@ -14,9 +14,13 @@ public class AppointmentOnlinePaymentServiceTests
         Assert.Equal("2700.00", session.Amount); Assert.True(session.Sandbox);
         Assert.Equal("AwaitingGatewayPayment", (await f.Payments.GetPaymentAsync(PaymentFixture.Patient, 1))!.Status);
         var callback = f.Notification(session.GatewayOrderId);
-        await f.Online.HandleNotificationAsync(callback); await f.Online.HandleNotificationAsync(callback);
+        await f.Online.HandleNotificationAsync(callback);
+        var confirmedAt = (await f.Db.AppointmentPayments.AsNoTracking().SingleAsync()).ConfirmedAtUtc;
+        await f.Online.HandleNotificationAsync(callback);
         f.Db.ChangeTracker.Clear(); var payment = await f.Db.AppointmentPayments.SingleAsync(); var attempt = await f.Db.AppointmentOnlinePaymentAttempts.SingleAsync();
         Assert.Equal(AppointmentPaymentStatus.Successful, payment.Status); Assert.Equal(AppointmentOnlinePaymentAttemptStatus.Succeeded, attempt.Status);
+        Assert.NotNull(payment.ConfirmedAtUtc);
+        Assert.Equal(confirmedAt, payment.ConfirmedAtUtc);
         Assert.Equal(payment.Id, attempt.AppointmentPaymentId); Assert.Equal(payment.AppointmentId, attempt.AppointmentId);
         Assert.Equal(PaymentFixture.Patient, attempt.PatientId); Assert.Equal("TEST-TRANSACTION", attempt.GatewayPaymentId);
         Assert.False((await f.Online.GetResultAsync(PaymentFixture.Patient, 1, attempt.Id)).CanRetry);

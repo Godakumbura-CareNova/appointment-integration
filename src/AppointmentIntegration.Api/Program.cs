@@ -122,6 +122,7 @@ builder.Services.AddScoped<
     BlobStorageService>();    
     
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddScoped<AppointmentDashboardService>();
 builder.Services.AddScoped<IPatientAppointmentService, PatientAppointmentService>();
 builder.Services.AddScoped<IDoctorAppointmentService, DoctorAppointmentService>();
 builder.Services.AddHttpClient<IUserAuthClient, UserAuthClient>(client => {

@@ -58,6 +58,11 @@ public class AppointmentPaymentsIntegrationTests
         Assert.Equal(HttpStatusCode.OK, (await staff.PostAsJsonAsync(review, new { approved = true })).StatusCode);
         var payment = await patient.GetFromJsonAsync<JsonElement>("/api/appointments/1/payment");
         Assert.Equal("Successful", payment.GetProperty("status").GetString());
+        using (var scope = factory.Services.CreateScope())
+        {
+            var stored = await scope.ServiceProvider.GetRequiredService<AppDbContext>().AppointmentPayments.SingleAsync();
+            Assert.NotNull(stored.ConfirmedAtUtc);
+        }
         Assert.Empty((await staff.GetFromJsonAsync<JsonElement>("/api/staff/appointment-payments/receipts")).EnumerateArray());
     }
 

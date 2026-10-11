@@ -426,6 +426,7 @@ public class AppointmentPaymentService : IAppointmentPaymentService
 
             payment.Status =
                 AppointmentPaymentStatus.Successful;
+            payment.ConfirmedAtUtc ??= now;
         }
         else
         {

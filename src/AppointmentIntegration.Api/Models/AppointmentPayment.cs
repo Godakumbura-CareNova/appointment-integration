@@ -19,4 +19,6 @@ public class AppointmentPayment
     public DateTime CreatedAtUtc { get; set; }
 
     public DateTime UpdatedAtUtc { get; set; }
+    // Authoritative success time; null for legacy payments whose date cannot be proven.
+    public DateTime? ConfirmedAtUtc { get; set; }
 }
