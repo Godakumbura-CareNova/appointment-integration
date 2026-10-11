@@ -85,6 +85,7 @@ builder.Services.AddScoped<
     BlobStorageService>();    
     
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddScoped<IPatientAppointmentService, PatientAppointmentService>();
 
 var jwtSecret =
     builder.Configuration["JwtSettings:Secret"];

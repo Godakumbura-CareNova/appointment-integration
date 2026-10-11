@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -111,9 +112,19 @@ public class AppointmentPaymentsIntegrationTests
         file.Headers.ContentType = new("application/pdf"); form.Add(file, "receipt", "receipt.pdf"); return form;
     }
 
-    private sealed class PaymentApiFactory : WebApplicationFactory<Program>
+    internal sealed class PaymentApiFactory : WebApplicationFactory<Program>
     {
         private readonly string database = Guid.NewGuid().ToString();
+        private readonly SqliteConnection? connection;
+        public PaymentApiFactory(bool relational = false)
+        {
+            if (relational) { connection = new SqliteConnection("Data Source=:memory:"); connection.Open(); }
+        }
+        protected override void Dispose(bool disposing)
+        {
+            base.Dispose(disposing);
+            if (disposing) connection?.Dispose();
+        }
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             builder.UseEnvironment("Testing");
@@ -123,7 +134,10 @@ public class AppointmentPaymentsIntegrationTests
             builder.ConfigureServices(services => {
                 services.RemoveAll<AppDbContext>(); services.RemoveAll<DbContextOptions<AppDbContext>>();
                 foreach (var descriptor in services.Where(x => x.ServiceType.FullName?.StartsWith("Microsoft.EntityFrameworkCore.Infrastructure.IDbContextOptionsConfiguration") == true).ToArray()) services.Remove(descriptor);
-                services.AddDbContext<AppDbContext>(options => options.UseInMemoryDatabase(database));
+                services.AddDbContext<AppDbContext>(options => {
+                    if (connection is null) options.UseInMemoryDatabase(database);
+                    else options.UseSqlite(connection);
+                });
                 services.AddHttpClient<DoctorPaymentClient>(client => client.BaseAddress = new Uri("https://example.test/"))
                     .ConfigurePrimaryHttpMessageHandler(() => new PaymentFixture.DoctorHandler());
                 services.RemoveAll<IBlobStorageService>(); services.AddSingleton<IBlobStorageService>(new MemoryReceiptStorage());
@@ -138,6 +152,7 @@ public class AppointmentPaymentsIntegrationTests
         public async Task Seed()
         {
             using var scope = Services.CreateScope(); var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            await db.Database.EnsureCreatedAsync();
             db.Appointments.Add(new() { Id = 1, PatientId = PaymentFixture.Patient, AppointmentReference = "CN-APT-TEST", DoctorName = "Dr Test",
                 DoctorId = Guid.Parse("22222222-2222-2222-2222-222222222222"), DoctorAvailabilitySlotId = 10 });
             await db.SaveChangesAsync();

@@ -12,6 +12,7 @@ using AppointmentIntegration.Api.Services;
 using AppointmentIntegration.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
@@ -21,8 +22,8 @@ internal sealed class PaymentFixture : IDisposable
 {
     public static readonly Guid Patient = Guid.Parse("11111111-1111-1111-1111-111111111111");
     public static readonly Guid Staff = Guid.Parse("33333333-3333-3333-3333-333333333333");
-    public AppDbContext Db { get; } = new(new DbContextOptionsBuilder<AppDbContext>()
-        .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
+    public AppDbContext Db { get; }
+    private readonly SqliteConnection? connection;
     public MemoryReceiptStorage Storage { get; } = new();
     public PayHereSettings Settings { get; } = new() {
         MerchantId = "TEST123", MerchantSecret = "isolated-test-secret", Sandbox = true,
@@ -32,8 +33,16 @@ internal sealed class PaymentFixture : IDisposable
     public AppointmentOnlinePaymentService Online { get; }
     private readonly HttpClient doctorHttp = new(new DoctorHandler()) { BaseAddress = new Uri("https://example.test/") };
 
-    public PaymentFixture()
+    public PaymentFixture(bool relational = false)
     {
+        var options = new DbContextOptionsBuilder<AppDbContext>();
+        if (relational)
+        {
+            connection = new SqliteConnection("Data Source=:memory:"); connection.Open();
+            options.UseSqlite(connection);
+        }
+        else options.UseInMemoryDatabase(Guid.NewGuid().ToString());
+        Db = new AppDbContext(options.Options); Db.Database.EnsureCreated();
         var repository = new AppointmentPaymentRepository(Db);
         Payments = new(repository, new DoctorPaymentClient(doctorHttp, new HttpContextAccessor()), Storage, TimeProvider.System);
         Online = new(repository, new PayHerePaymentGateway(Options.Create(Settings), NullLogger<PayHerePaymentGateway>.Instance),
@@ -66,7 +75,7 @@ internal sealed class PaymentFixture : IDisposable
             ["md5sig"] = Hash("TEST123" + orderId + amount + currency + status + Hash("isolated-test-secret"))
         };
     }
-    public void Dispose() { Db.Dispose(); doctorHttp.Dispose(); }
+    public void Dispose() { Db.Dispose(); connection?.Dispose(); doctorHttp.Dispose(); }
     internal sealed class DoctorHandler : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
