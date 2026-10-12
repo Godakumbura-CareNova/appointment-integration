@@ -9,6 +9,14 @@ namespace AppointmentIntegration.Api.Controllers;
 [ApiController]
 public sealed class AppointmentDashboardController(AppointmentDashboardService service) : ControllerBase
 {
+    [Authorize(Roles = "Admin")]
+    [HttpGet("api/admin/dashboard/appointments")]
+    public async Task<IActionResult> AdminAppointments(CancellationToken ct) => Ok(await service.GetAdminAppointmentsAsync(ct));
+
+    [Authorize(Roles = "Admin")]
+    [HttpGet("api/admin/dashboard/appointment-payments")]
+    public async Task<IActionResult> AdminPayments(CancellationToken ct) => Ok(await service.GetAdminPaymentsAsync(ct));
+
     [Authorize(Roles = "Patient,User")]
     [HttpGet("api/patient/dashboard/appointments")]
     public async Task<IActionResult> Patient(CancellationToken ct)

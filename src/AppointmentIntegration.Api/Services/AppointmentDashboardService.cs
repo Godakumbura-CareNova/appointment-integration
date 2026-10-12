@@ -7,6 +7,48 @@ namespace AppointmentIntegration.Api.Services;
 
 public sealed class AppointmentDashboardService(AppDbContext db, TimeProvider clock)
 {
+    public async Task<AdminAppointmentDashboardDto> GetAdminAppointmentsAsync(CancellationToken ct)
+    {
+        var now = clock.GetUtcNow().UtcDateTime;
+        var zone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Colombo");
+        var localDate = TimeZoneInfo.ConvertTimeFromUtc(now, zone).Date;
+        var day = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(localDate, DateTimeKind.Unspecified), zone);
+        var end = day.AddDays(1);
+        var query = db.Appointments.AsNoTracking();
+        var groups = await query.GroupBy(a => (string)(object)a.Status)
+            .Select(g => new { Status = g.Key, Count = g.Count() }).ToListAsync(ct);
+        var counts = groups.GroupBy(g => Normalize<AppointmentStatus>(g.Status)!)
+            .ToDictionary(g => g.Key, g => g.Sum(x => x.Count));
+        var today = await query.CountAsync(a => a.AppointmentStartUtc >= day && a.AppointmentStartUtc < end, ct);
+        var upcoming = await query.CountAsync(a => a.AppointmentStartUtc > now &&
+            (a.Status == AppointmentStatus.Booked || a.Status == AppointmentStatus.Confirmed), ct);
+        // Materialize the bounded IDs: MySQL does not support LIMIT inside an IN subquery.
+        var recentIds = await query.OrderByDescending(a => a.CreatedAtUtc).ThenByDescending(a => a.Id)
+            .Take(5).Select(a => a.Id).ToArrayAsync(ct);
+        var rows = await (from a in query where recentIds.Contains(a.Id)
+            join payment in db.AppointmentPayments.AsNoTracking() on new { AppointmentId = a.Id, a.PatientId } equals new { payment.AppointmentId, payment.PatientId } into payments
+            from p in payments.DefaultIfEmpty()
+            orderby a.CreatedAtUtc descending, a.Id descending
+            select new { a.Id, Reference = a.AppointmentReference, a.DoctorName, Start = a.AppointmentStartUtc,
+                Status = (string)(object)a.Status, Method = p == null ? null : (string)(object)p.Method,
+                PaymentStatus = p == null ? null : (string)(object)p.Status }).ToListAsync(ct);
+        return new(groups.Sum(g => g.Count), counts, today, upcoming, rows.Select(a => new DashboardAppointment(a.Id,
+            a.Reference, a.DoctorName, Utc(a.Start), Normalize<AppointmentStatus>(a.Status)!,
+            Normalize<AppointmentPaymentMethod>(a.Method), Normalize<AppointmentPaymentStatus>(a.PaymentStatus))).ToArray(), now);
+    }
+
+    public async Task<AdminAppointmentPaymentDashboardDto> GetAdminPaymentsAsync(CancellationToken ct)
+    {
+        var groups = await db.AppointmentPayments.AsNoTracking().GroupBy(p => p.Status)
+            .Select(g => new { Status = g.Key, Count = g.Count() }).ToListAsync(ct);
+        var summary = await GetStaffPaymentsAsync(ct);
+        return new(groups.Sum(g => g.Count), groups.ToDictionary(g => g.Status.ToString(), g => g.Count),
+            summary.PendingTransfers, summary.RecentPayments, summary.Income, summary.GeneratedAtUtc);
+    }
+
+    private static string? Normalize<T>(string? value) where T : struct, Enum => value is null ? null
+        : Enum.TryParse<T>(value, out var parsed) && Enum.IsDefined(parsed) ? parsed.ToString() : "Unavailable";
+
     public async Task<PatientAppointmentDashboard> GetPatientAsync(Guid patientId, CancellationToken ct)
     {
         var now = clock.GetUtcNow().UtcDateTime;
