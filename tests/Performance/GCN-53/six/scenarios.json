@@ -1,0 +1,65 @@
+{
+  "total_requests": 6,
+  "samplers": 6,
+  "test_cases": 6,
+  "threads_per_case": 1,
+  "iterations_per_case": 1,
+  "read_only": true,
+  "note": "Six read-only requests, one per test case, one thread, one iteration. A functional smoke test of the six most important admin dashboard behaviors: not a load, concurrency, stability or response-time-statistics test. The 3000 ms limit is a sanity cap, not a service level.",
+  "scenarios": {
+    "T01": {
+      "name": "Admin appointment summary",
+      "method": "GET",
+      "path": "/api/admin/dashboard/appointments",
+      "role": "Admin",
+      "expected_status": 200,
+      "requests": 1,
+      "threshold_ms": 3000
+    },
+    "T02": {
+      "name": "Admin payment summary and income",
+      "method": "GET",
+      "path": "/api/admin/dashboard/appointment-payments",
+      "role": "Admin",
+      "expected_status": 200,
+      "requests": 1,
+      "threshold_ms": 3000
+    },
+    "T03": {
+      "name": "Admin appointment listing and pagination",
+      "method": "GET",
+      "path": "/api/admin/appointments?page=2&pageSize=5",
+      "role": "Admin",
+      "expected_status": 200,
+      "requests": 1,
+      "threshold_ms": 3000
+    },
+    "T04": {
+      "name": "Admin income report and date grouping",
+      "method": "GET",
+      "path": "/api/admin/reports/appointment-income?from&to (21 days)",
+      "role": "Admin",
+      "expected_status": 200,
+      "requests": 1,
+      "threshold_ms": 3000
+    },
+    "T05": {
+      "name": "Unauthenticated access to financial data",
+      "method": "GET",
+      "path": "/api/admin/dashboard/appointment-payments",
+      "role": "none",
+      "expected_status": 401,
+      "requests": 1,
+      "threshold_ms": 3000
+    },
+    "T06": {
+      "name": "Non-admin access to appointment data",
+      "method": "GET",
+      "path": "/api/admin/appointments",
+      "role": "Patient",
+      "expected_status": 403,
+      "requests": 1,
+      "threshold_ms": 3000
+    }
+  }
+}
