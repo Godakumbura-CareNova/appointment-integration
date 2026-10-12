@@ -1,0 +1,359 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3"><hashTree><TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="GCN-48 Appointment Cancellation API (5 scenarios, 5 HTTP requests)" enabled="true"><stringProp name="TestPlan.comments">GCN-48 QA. LOCAL only: backend localhost:5248, isolated database carenova_appointment_gcn48_qa, synthetic patients and appointments. EXACTLY five HTTP requests, one per scenario (4 GET + 1 POST), one thread and one iteration each. No setup, authentication, health-check or teardown request. Functional and latency SMOKE test only: NOT a load or concurrency test. No secrets in this file. Run it through run-gcn48-jmeter.sh, never from the GUI.</stringProp><boolProp name="TestPlan.functional_mode">false</boolProp><boolProp name="TestPlan.tearDown_on_shutdown">true</boolProp><boolProp name="TestPlan.serialize_threadgroups">true</boolProp><elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true"><collectionProp name="Arguments.arguments"/></elementProp><stringProp name="TestPlan.user_define_classpath"></stringProp></TestPlan><hashTree><ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="Summary Report" enabled="true"><boolProp name="ResultCollector.error_logging">false</boolProp><objProp><name>saveConfig</name><value class="SampleSaveConfiguration"><time>true</time><latency>true</latency><timestamp>true</timestamp><success>true</success><label>true</label><code>true</code><message>true</message><threadName>true</threadName><dataType>true</dataType><encoding>false</encoding><assertions>true</assertions><subresults>true</subresults><responseData>false</responseData><samplerData>false</samplerData><xml>false</xml><fieldNames>true</fieldNames><responseHeaders>false</responseHeaders><requestHeaders>false</requestHeaders><responseDataOnError>false</responseDataOnError><saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage><assertionsResultsToSave>0</assertionsResultsToSave><bytes>true</bytes><sentBytes>true</sentBytes><url>true</url><threadCounts>true</threadCounts><idleTime>true</idleTime><connectTime>true</connectTime></value></objProp><stringProp name="filename"></stringProp></ResultCollector><hashTree></hashTree><ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree" enabled="true"><boolProp name="ResultCollector.error_logging">false</boolProp><objProp><name>saveConfig</name><value class="SampleSaveConfiguration"><time>true</time><latency>true</latency><timestamp>true</timestamp><success>true</success><label>true</label><code>true</code><message>true</message><threadName>true</threadName><dataType>true</dataType><encoding>false</encoding><assertions>true</assertions><subresults>true</subresults><responseData>false</responseData><samplerData>false</samplerData><xml>false</xml><fieldNames>true</fieldNames><responseHeaders>false</responseHeaders><requestHeaders>false</requestHeaders><responseDataOnError>false</responseDataOnError><saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage><assertionsResultsToSave>0</assertionsResultsToSave><bytes>true</bytes><sentBytes>true</sentBytes><url>true</url><threadCounts>true</threadCounts><idleTime>true</idleTime><connectTime>true</connectTime></value></objProp><stringProp name="filename"></stringProp></ResultCollector><hashTree></hashTree><ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="JM-01 Own unpaid appointment eligibility" enabled="true"><stringProp name="TestPlan.comments">ONE request: GET eligibility of patient 1's own unpaid (cash, pending) appointment 48001 with patient 1's token. 200, allowed true, reason Unpaid, no refund, a valid 64-character version (equal to the version computed offline).</stringProp><stringProp name="ThreadGroup.on_sample_error">continue</stringProp><elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true"><boolProp name="LoopController.continue_forever">false</boolProp><stringProp name="LoopController.loops">1</stringProp></elementProp><stringProp name="ThreadGroup.num_threads">1</stringProp><stringProp name="ThreadGroup.ramp_time">0</stringProp><boolProp name="ThreadGroup.scheduler">false</boolProp><stringProp name="ThreadGroup.duration"></stringProp><stringProp name="ThreadGroup.delay"></stringProp><boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp></ThreadGroup><hashTree><HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="JM-01 Own unpaid appointment eligibility" enabled="true"><stringProp name="HTTPSampler.domain">localhost</stringProp><stringProp name="HTTPSampler.port">5248</stringProp><stringProp name="HTTPSampler.protocol">http</stringProp><stringProp name="HTTPSampler.path">/api/patient/appointments/${TARGET_ID}/cancellation</stringProp><stringProp name="HTTPSampler.method">GET</stringProp><boolProp name="HTTPSampler.follow_redirects">false</boolProp><boolProp name="HTTPSampler.auto_redirects">false</boolProp><boolProp name="HTTPSampler.use_keepalive">true</boolProp><boolProp name="HTTPSampler.DO_MULTIPART_POST">false</boolProp><boolProp name="HTTPSampler.image_parser">false</boolProp><stringProp name="HTTPSampler.connect_timeout">5000</stringProp><stringProp name="HTTPSampler.response_timeout">30000</stringProp></HTTPSamplerProxy><hashTree><HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Headers" enabled="true"><collectionProp name="HeaderManager.headers"><elementProp name="" elementType="Header"><stringProp name="Header.name">Authorization</stringProp><stringProp name="Header.value">Bearer ${TOKEN}</stringProp></elementProp><elementProp name="" elementType="Header"><stringProp name="Header.name">Accept</stringProp><stringProp name="Header.value">application/json</stringProp></elementProp></collectionProp></HeaderManager><hashTree></hashTree><JSR223PreProcessor guiclass="TestBeanGUI" testclass="JSR223PreProcessor" testname="Local JWT, fixtures and environment sanity (never an HTTP call)" enabled="true"><stringProp name="cacheKey">true</stringProp><stringProp name="filename"></stringProp><stringProp name="parameters"></stringProp><stringProp name="script">
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
+import groovy.json.JsonSlurper
+def b64u = { byte[] b -&gt; java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(b) }
+def mint = { String secret, String role, String sub -&gt;
+  def header = b64u('{"alg":"HS256","typ":"JWT"}'.getBytes('UTF-8'))
+  long exp = (long) (System.currentTimeMillis() / 1000L) + 900L
+  def nameId = 'http://schemas.microsoft.com/ws/2008/06/identity/claims/nameidentifier'
+  def roleId = 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role'
+  def payload = b64u(('{"sub":"' + sub + '","' + nameId + '":"' + sub + '","' + roleId + '":"' + role + '","iss":"CareNova.UserAuth","aud":"CareNova.Client","exp":' + exp + '}').getBytes('UTF-8'))
+  def mac = Mac.getInstance('HmacSHA256'); mac.init(new SecretKeySpec(secret.getBytes('UTF-8'), 'HmacSHA256'))
+  header + '.' + payload + '.' + b64u(mac.doFinal((header + '.' + payload).getBytes('UTF-8')))
+}
+def deep; deep = { x -&gt; x instanceof Map ? x.collectEntries { k, v -&gt; [(k): deep(v)] } : (x instanceof List ? x.collect { deep(it) } : x) }
+
+def why = []
+def secret = System.getenv('GCN48_JWT_SECRET')
+if (!secret) { why &lt;&lt; 'GCN48_JWT_SECRET is not in the environment of the JMeter process' }
+def fx = null
+def f = new File(props.get('fixturesFile') ?: '')
+if (!f.exists()) { why &lt;&lt; 'fixtures file missing' } else {
+  fx = deep(new JsonSlurper().parseText(f.text))
+  if (fx.synthetic != true) { why &lt;&lt; 'fixtures are not marked synthetic' }
+  if (java.time.Instant.now().isAfter(java.time.Instant.parse(fx.validUntilUtc))) { why &lt;&lt; 'fixtures are older than 36 hours: re-seed a new empty database' }
+}
+String role = 'None'; String sub = '00000000-0000-0000-0000-000000000000'
+if (fx != null) {
+  def t = fx.targets['JM-01']
+  role = t.role ?: 'Patient'; sub = fx.actors[t.actor]
+  vars.put('TARGET_ID', String.valueOf(t.appointmentId))
+  if (t.expectedVersion != null) { vars.put('EXPECTED_VERSION', t.expectedVersion); vars.put('CANCEL_REASON', t.reason) }
+}
+vars.put('ENV_OK', why.isEmpty() ? 'true' : 'false'); vars.put('ENV_WHY', why.join('; '))
+vars.put('TOKEN', (secret &amp;&amp; fx != null) ? mint(secret, role, sub) : 'invalid')
+</stringProp><stringProp name="scriptLanguage">groovy</stringProp></JSR223PreProcessor><hashTree></hashTree><JSR223Assertion guiclass="TestBeanGUI" testclass="JSR223Assertion" testname="Environment sanity (secret present, synthetic fresh fixtures): otherwise the scenario FAILS" enabled="true"><stringProp name="cacheKey">true</stringProp><stringProp name="filename"></stringProp><stringProp name="parameters"></stringProp><stringProp name="script">if (vars.get('ENV_OK') != 'true') { AssertionResult.setFailure(true); AssertionResult.setFailureMessage('environment not valid: ' + vars.get('ENV_WHY')) }</stringProp><stringProp name="scriptLanguage">groovy</stringProp></JSR223Assertion><hashTree></hashTree><ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="HTTP status is exactly 200" enabled="true"><collectionProp name="Asserion.test_strings"><stringProp name="1">200</stringProp></collectionProp><stringProp name="Assertion.custom_message"></stringProp><stringProp name="Assertion.test_field">Assertion.response_code</stringProp><boolProp name="Assertion.assume_success">false</boolProp><intProp name="Assertion.test_type">8</intProp></ResponseAssertion><hashTree></hashTree><ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Content-Type is JSON" enabled="true"><collectionProp name="Asserion.test_strings"><stringProp name="1">application/json</stringProp></collectionProp><stringProp name="Assertion.custom_message"></stringProp><stringProp name="Assertion.test_field">Assertion.response_headers</stringProp><boolProp name="Assertion.assume_success">false</boolProp><intProp name="Assertion.test_type">16</intProp></ResponseAssertion><hashTree></hashTree><JSR223Assertion guiclass="TestBeanGUI" testclass="JSR223Assertion" testname="Eligibility equals the seeded appointment: allowed true, Unpaid, NotRequired, valid 64-hex version equal to the offline value" enabled="true"><stringProp name="cacheKey">true</stringProp><stringProp name="filename"></stringProp><stringProp name="parameters"></stringProp><stringProp name="script">
+import groovy.json.JsonSlurper
+def deep; deep = { x -&gt; x instanceof Map ? x.collectEntries { k, v -&gt; [(k): deep(v)] } : (x instanceof List ? x.collect { deep(it) } : x) }
+def fx = deep(new JsonSlurper().parseText(new File(props.get('fixturesFile')).text))
+def byId = { int id -&gt; fx.appointments.find { it.id == id } }
+def finish = { List fails -&gt; if (fails) { AssertionResult.setFailure(true); AssertionResult.setFailureMessage(fails.take(5).join('; ')) } }
+def sameNumber = { x, y -&gt; x != null &amp;&amp; y != null &amp;&amp; new java.math.BigDecimal(String.valueOf(x)).compareTo(new java.math.BigDecimal(String.valueOf(y))) == 0 }
+def ELIG_KEYS = ['appointmentId','allowed','reasonCode','message','refundOutcome','refundAmount','requiresNoRefundAcknowledgement','version','cancellation'] as Set
+def checkEligibility = { Map json, int id, List fails -&gt;
+  def e = byId(id).expected
+  if (json.keySet() as Set != ELIG_KEYS) { fails &lt;&lt; ('fields differ from the contract: ' + ((json.keySet() as Set) - ELIG_KEYS) + ' extra, ' + (ELIG_KEYS - (json.keySet() as Set)) + ' missing') }
+  if (json.appointmentId != id) { fails &lt;&lt; ('appointmentId ' + json.appointmentId + ', expected ' + id) }
+  if (json.allowed != e.allowed) { fails &lt;&lt; ('allowed = ' + json.allowed + ', expected ' + e.allowed) }
+  if (json.reasonCode != e.reasonCode) { fails &lt;&lt; ('reasonCode = ' + json.reasonCode + ', expected ' + e.reasonCode) }
+  if (json.message != e.message) { fails &lt;&lt; ('message = ' + json.message + ', expected ' + e.message) }
+  if (json.refundOutcome != e.refundOutcome) { fails &lt;&lt; ('refundOutcome = ' + json.refundOutcome + ', expected ' + e.refundOutcome) }
+  if (!sameNumber(json.refundAmount, e.refundAmount)) { fails &lt;&lt; ('refundAmount = ' + json.refundAmount + ', expected ' + e.refundAmount) }
+  if (json.requiresNoRefundAcknowledgement != e.requiresNoRefundAcknowledgement) { fails &lt;&lt; ('requiresNoRefundAcknowledgement = ' + json.requiresNoRefundAcknowledgement) }
+  if (json.cancellation != null) { fails &lt;&lt; 'a cancellation is already stored for this appointment (the database was not fresh)' }
+  def v = String.valueOf(json.version)
+  if (!(v ==~ /^[0-9A-F]{64}$/)) { fails &lt;&lt; ('version is not a valid 64-character hexadecimal version: ' + v) }
+  else if (v != e.version) { fails &lt;&lt; 'version is valid but differs from the version computed offline from the seeded rows (the offline port and the server disagree)' }
+}
+def fails = []
+def raw = prev.getResponseDataAsString() ?: ''
+
+def json = new JsonSlurper().parseText(raw)
+if (!(json instanceof Map)) { fails &lt;&lt; 'body is not a JSON object' } else { checkEligibility(json, Integer.parseInt(vars.get('TARGET_ID')), fails) }
+
+finish(fails)</stringProp><stringProp name="scriptLanguage">groovy</stringProp></JSR223Assertion><hashTree></hashTree><DurationAssertion guiclass="DurationAssertionGui" testclass="DurationAssertion" testname="Sanity cap: answered within 3000 ms (NOT a performance claim)" enabled="true"><stringProp name="DurationAssertion.duration">3000</stringProp></DurationAssertion><hashTree></hashTree></hashTree></hashTree><ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="JM-02 Restricted cash-paid appointment eligibility" enabled="true"><stringProp name="TestPlan.comments">ONE request: GET eligibility of patient 1's cash-paid appointment 48002. 200, allowed false, reason CashAlreadyPaid.</stringProp><stringProp name="ThreadGroup.on_sample_error">continue</stringProp><elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true"><boolProp name="LoopController.continue_forever">false</boolProp><stringProp name="LoopController.loops">1</stringProp></elementProp><stringProp name="ThreadGroup.num_threads">1</stringProp><stringProp name="ThreadGroup.ramp_time">0</stringProp><boolProp name="ThreadGroup.scheduler">false</boolProp><stringProp name="ThreadGroup.duration"></stringProp><stringProp name="ThreadGroup.delay"></stringProp><boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp></ThreadGroup><hashTree><HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="JM-02 Restricted cash-paid appointment eligibility" enabled="true"><stringProp name="HTTPSampler.domain">localhost</stringProp><stringProp name="HTTPSampler.port">5248</stringProp><stringProp name="HTTPSampler.protocol">http</stringProp><stringProp name="HTTPSampler.path">/api/patient/appointments/${TARGET_ID}/cancellation</stringProp><stringProp name="HTTPSampler.method">GET</stringProp><boolProp name="HTTPSampler.follow_redirects">false</boolProp><boolProp name="HTTPSampler.auto_redirects">false</boolProp><boolProp name="HTTPSampler.use_keepalive">true</boolProp><boolProp name="HTTPSampler.DO_MULTIPART_POST">false</boolProp><boolProp name="HTTPSampler.image_parser">false</boolProp><stringProp name="HTTPSampler.connect_timeout">5000</stringProp><stringProp name="HTTPSampler.response_timeout">30000</stringProp></HTTPSamplerProxy><hashTree><HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Headers" enabled="true"><collectionProp name="HeaderManager.headers"><elementProp name="" elementType="Header"><stringProp name="Header.name">Authorization</stringProp><stringProp name="Header.value">Bearer ${TOKEN}</stringProp></elementProp><elementProp name="" elementType="Header"><stringProp name="Header.name">Accept</stringProp><stringProp name="Header.value">application/json</stringProp></elementProp></collectionProp></HeaderManager><hashTree></hashTree><JSR223PreProcessor guiclass="TestBeanGUI" testclass="JSR223PreProcessor" testname="Local JWT, fixtures and environment sanity (never an HTTP call)" enabled="true"><stringProp name="cacheKey">true</stringProp><stringProp name="filename"></stringProp><stringProp name="parameters"></stringProp><stringProp name="script">
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
+import groovy.json.JsonSlurper
+def b64u = { byte[] b -&gt; java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(b) }
+def mint = { String secret, String role, String sub -&gt;
+  def header = b64u('{"alg":"HS256","typ":"JWT"}'.getBytes('UTF-8'))
+  long exp = (long) (System.currentTimeMillis() / 1000L) + 900L
+  def nameId = 'http://schemas.microsoft.com/ws/2008/06/identity/claims/nameidentifier'
+  def roleId = 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role'
+  def payload = b64u(('{"sub":"' + sub + '","' + nameId + '":"' + sub + '","' + roleId + '":"' + role + '","iss":"CareNova.UserAuth","aud":"CareNova.Client","exp":' + exp + '}').getBytes('UTF-8'))
+  def mac = Mac.getInstance('HmacSHA256'); mac.init(new SecretKeySpec(secret.getBytes('UTF-8'), 'HmacSHA256'))
+  header + '.' + payload + '.' + b64u(mac.doFinal((header + '.' + payload).getBytes('UTF-8')))
+}
+def deep; deep = { x -&gt; x instanceof Map ? x.collectEntries { k, v -&gt; [(k): deep(v)] } : (x instanceof List ? x.collect { deep(it) } : x) }
+
+def why = []
+def secret = System.getenv('GCN48_JWT_SECRET')
+if (!secret) { why &lt;&lt; 'GCN48_JWT_SECRET is not in the environment of the JMeter process' }
+def fx = null
+def f = new File(props.get('fixturesFile') ?: '')
+if (!f.exists()) { why &lt;&lt; 'fixtures file missing' } else {
+  fx = deep(new JsonSlurper().parseText(f.text))
+  if (fx.synthetic != true) { why &lt;&lt; 'fixtures are not marked synthetic' }
+  if (java.time.Instant.now().isAfter(java.time.Instant.parse(fx.validUntilUtc))) { why &lt;&lt; 'fixtures are older than 36 hours: re-seed a new empty database' }
+}
+String role = 'None'; String sub = '00000000-0000-0000-0000-000000000000'
+if (fx != null) {
+  def t = fx.targets['JM-02']
+  role = t.role ?: 'Patient'; sub = fx.actors[t.actor]
+  vars.put('TARGET_ID', String.valueOf(t.appointmentId))
+  if (t.expectedVersion != null) { vars.put('EXPECTED_VERSION', t.expectedVersion); vars.put('CANCEL_REASON', t.reason) }
+}
+vars.put('ENV_OK', why.isEmpty() ? 'true' : 'false'); vars.put('ENV_WHY', why.join('; '))
+vars.put('TOKEN', (secret &amp;&amp; fx != null) ? mint(secret, role, sub) : 'invalid')
+</stringProp><stringProp name="scriptLanguage">groovy</stringProp></JSR223PreProcessor><hashTree></hashTree><JSR223Assertion guiclass="TestBeanGUI" testclass="JSR223Assertion" testname="Environment sanity (secret present, synthetic fresh fixtures): otherwise the scenario FAILS" enabled="true"><stringProp name="cacheKey">true</stringProp><stringProp name="filename"></stringProp><stringProp name="parameters"></stringProp><stringProp name="script">if (vars.get('ENV_OK') != 'true') { AssertionResult.setFailure(true); AssertionResult.setFailureMessage('environment not valid: ' + vars.get('ENV_WHY')) }</stringProp><stringProp name="scriptLanguage">groovy</stringProp></JSR223Assertion><hashTree></hashTree><ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="HTTP status is exactly 200" enabled="true"><collectionProp name="Asserion.test_strings"><stringProp name="1">200</stringProp></collectionProp><stringProp name="Assertion.custom_message"></stringProp><stringProp name="Assertion.test_field">Assertion.response_code</stringProp><boolProp name="Assertion.assume_success">false</boolProp><intProp name="Assertion.test_type">8</intProp></ResponseAssertion><hashTree></hashTree><ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Content-Type is JSON" enabled="true"><collectionProp name="Asserion.test_strings"><stringProp name="1">application/json</stringProp></collectionProp><stringProp name="Assertion.custom_message"></stringProp><stringProp name="Assertion.test_field">Assertion.response_headers</stringProp><boolProp name="Assertion.assume_success">false</boolProp><intProp name="Assertion.test_type">16</intProp></ResponseAssertion><hashTree></hashTree><JSR223Assertion guiclass="TestBeanGUI" testclass="JSR223Assertion" testname="Eligibility is the restriction: allowed false, CashAlreadyPaid, no refund, version equal to the offline value" enabled="true"><stringProp name="cacheKey">true</stringProp><stringProp name="filename"></stringProp><stringProp name="parameters"></stringProp><stringProp name="script">
+import groovy.json.JsonSlurper
+def deep; deep = { x -&gt; x instanceof Map ? x.collectEntries { k, v -&gt; [(k): deep(v)] } : (x instanceof List ? x.collect { deep(it) } : x) }
+def fx = deep(new JsonSlurper().parseText(new File(props.get('fixturesFile')).text))
+def byId = { int id -&gt; fx.appointments.find { it.id == id } }
+def finish = { List fails -&gt; if (fails) { AssertionResult.setFailure(true); AssertionResult.setFailureMessage(fails.take(5).join('; ')) } }
+def sameNumber = { x, y -&gt; x != null &amp;&amp; y != null &amp;&amp; new java.math.BigDecimal(String.valueOf(x)).compareTo(new java.math.BigDecimal(String.valueOf(y))) == 0 }
+def ELIG_KEYS = ['appointmentId','allowed','reasonCode','message','refundOutcome','refundAmount','requiresNoRefundAcknowledgement','version','cancellation'] as Set
+def checkEligibility = { Map json, int id, List fails -&gt;
+  def e = byId(id).expected
+  if (json.keySet() as Set != ELIG_KEYS) { fails &lt;&lt; ('fields differ from the contract: ' + ((json.keySet() as Set) - ELIG_KEYS) + ' extra, ' + (ELIG_KEYS - (json.keySet() as Set)) + ' missing') }
+  if (json.appointmentId != id) { fails &lt;&lt; ('appointmentId ' + json.appointmentId + ', expected ' + id) }
+  if (json.allowed != e.allowed) { fails &lt;&lt; ('allowed = ' + json.allowed + ', expected ' + e.allowed) }
+  if (json.reasonCode != e.reasonCode) { fails &lt;&lt; ('reasonCode = ' + json.reasonCode + ', expected ' + e.reasonCode) }
+  if (json.message != e.message) { fails &lt;&lt; ('message = ' + json.message + ', expected ' + e.message) }
+  if (json.refundOutcome != e.refundOutcome) { fails &lt;&lt; ('refundOutcome = ' + json.refundOutcome + ', expected ' + e.refundOutcome) }
+  if (!sameNumber(json.refundAmount, e.refundAmount)) { fails &lt;&lt; ('refundAmount = ' + json.refundAmount + ', expected ' + e.refundAmount) }
+  if (json.requiresNoRefundAcknowledgement != e.requiresNoRefundAcknowledgement) { fails &lt;&lt; ('requiresNoRefundAcknowledgement = ' + json.requiresNoRefundAcknowledgement) }
+  if (json.cancellation != null) { fails &lt;&lt; 'a cancellation is already stored for this appointment (the database was not fresh)' }
+  def v = String.valueOf(json.version)
+  if (!(v ==~ /^[0-9A-F]{64}$/)) { fails &lt;&lt; ('version is not a valid 64-character hexadecimal version: ' + v) }
+  else if (v != e.version) { fails &lt;&lt; 'version is valid but differs from the version computed offline from the seeded rows (the offline port and the server disagree)' }
+}
+def fails = []
+def raw = prev.getResponseDataAsString() ?: ''
+
+def json = new JsonSlurper().parseText(raw)
+if (!(json instanceof Map)) { fails &lt;&lt; 'body is not a JSON object' } else { checkEligibility(json, Integer.parseInt(vars.get('TARGET_ID')), fails) }
+
+finish(fails)</stringProp><stringProp name="scriptLanguage">groovy</stringProp></JSR223Assertion><hashTree></hashTree><DurationAssertion guiclass="DurationAssertionGui" testclass="DurationAssertion" testname="Sanity cap: answered within 3000 ms (NOT a performance claim)" enabled="true"><stringProp name="DurationAssertion.duration">3000</stringProp></DurationAssertion><hashTree></hashTree></hashTree></hashTree><ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="JM-03 Another patient's appointment access" enabled="true"><stringProp name="TestPlan.comments">ONE request: GET eligibility of appointment 48101 (patient 2's) with patient 1's token. 404 with only the generic message; nothing about the appointment is disclosed.</stringProp><stringProp name="ThreadGroup.on_sample_error">continue</stringProp><elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true"><boolProp name="LoopController.continue_forever">false</boolProp><stringProp name="LoopController.loops">1</stringProp></elementProp><stringProp name="ThreadGroup.num_threads">1</stringProp><stringProp name="ThreadGroup.ramp_time">0</stringProp><boolProp name="ThreadGroup.scheduler">false</boolProp><stringProp name="ThreadGroup.duration"></stringProp><stringProp name="ThreadGroup.delay"></stringProp><boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp></ThreadGroup><hashTree><HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="JM-03 Another patient's appointment access" enabled="true"><stringProp name="HTTPSampler.domain">localhost</stringProp><stringProp name="HTTPSampler.port">5248</stringProp><stringProp name="HTTPSampler.protocol">http</stringProp><stringProp name="HTTPSampler.path">/api/patient/appointments/${TARGET_ID}/cancellation</stringProp><stringProp name="HTTPSampler.method">GET</stringProp><boolProp name="HTTPSampler.follow_redirects">false</boolProp><boolProp name="HTTPSampler.auto_redirects">false</boolProp><boolProp name="HTTPSampler.use_keepalive">true</boolProp><boolProp name="HTTPSampler.DO_MULTIPART_POST">false</boolProp><boolProp name="HTTPSampler.image_parser">false</boolProp><stringProp name="HTTPSampler.connect_timeout">5000</stringProp><stringProp name="HTTPSampler.response_timeout">30000</stringProp></HTTPSamplerProxy><hashTree><HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Headers" enabled="true"><collectionProp name="HeaderManager.headers"><elementProp name="" elementType="Header"><stringProp name="Header.name">Authorization</stringProp><stringProp name="Header.value">Bearer ${TOKEN}</stringProp></elementProp><elementProp name="" elementType="Header"><stringProp name="Header.name">Accept</stringProp><stringProp name="Header.value">application/json</stringProp></elementProp></collectionProp></HeaderManager><hashTree></hashTree><JSR223PreProcessor guiclass="TestBeanGUI" testclass="JSR223PreProcessor" testname="Local JWT, fixtures and environment sanity (never an HTTP call)" enabled="true"><stringProp name="cacheKey">true</stringProp><stringProp name="filename"></stringProp><stringProp name="parameters"></stringProp><stringProp name="script">
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
+import groovy.json.JsonSlurper
+def b64u = { byte[] b -&gt; java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(b) }
+def mint = { String secret, String role, String sub -&gt;
+  def header = b64u('{"alg":"HS256","typ":"JWT"}'.getBytes('UTF-8'))
+  long exp = (long) (System.currentTimeMillis() / 1000L) + 900L
+  def nameId = 'http://schemas.microsoft.com/ws/2008/06/identity/claims/nameidentifier'
+  def roleId = 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role'
+  def payload = b64u(('{"sub":"' + sub + '","' + nameId + '":"' + sub + '","' + roleId + '":"' + role + '","iss":"CareNova.UserAuth","aud":"CareNova.Client","exp":' + exp + '}').getBytes('UTF-8'))
+  def mac = Mac.getInstance('HmacSHA256'); mac.init(new SecretKeySpec(secret.getBytes('UTF-8'), 'HmacSHA256'))
+  header + '.' + payload + '.' + b64u(mac.doFinal((header + '.' + payload).getBytes('UTF-8')))
+}
+def deep; deep = { x -&gt; x instanceof Map ? x.collectEntries { k, v -&gt; [(k): deep(v)] } : (x instanceof List ? x.collect { deep(it) } : x) }
+
+def why = []
+def secret = System.getenv('GCN48_JWT_SECRET')
+if (!secret) { why &lt;&lt; 'GCN48_JWT_SECRET is not in the environment of the JMeter process' }
+def fx = null
+def f = new File(props.get('fixturesFile') ?: '')
+if (!f.exists()) { why &lt;&lt; 'fixtures file missing' } else {
+  fx = deep(new JsonSlurper().parseText(f.text))
+  if (fx.synthetic != true) { why &lt;&lt; 'fixtures are not marked synthetic' }
+  if (java.time.Instant.now().isAfter(java.time.Instant.parse(fx.validUntilUtc))) { why &lt;&lt; 'fixtures are older than 36 hours: re-seed a new empty database' }
+}
+String role = 'None'; String sub = '00000000-0000-0000-0000-000000000000'
+if (fx != null) {
+  def t = fx.targets['JM-03']
+  role = t.role ?: 'Patient'; sub = fx.actors[t.actor]
+  vars.put('TARGET_ID', String.valueOf(t.appointmentId))
+  if (t.expectedVersion != null) { vars.put('EXPECTED_VERSION', t.expectedVersion); vars.put('CANCEL_REASON', t.reason) }
+}
+vars.put('ENV_OK', why.isEmpty() ? 'true' : 'false'); vars.put('ENV_WHY', why.join('; '))
+vars.put('TOKEN', (secret &amp;&amp; fx != null) ? mint(secret, role, sub) : 'invalid')
+</stringProp><stringProp name="scriptLanguage">groovy</stringProp></JSR223PreProcessor><hashTree></hashTree><JSR223Assertion guiclass="TestBeanGUI" testclass="JSR223Assertion" testname="Environment sanity (secret present, synthetic fresh fixtures): otherwise the scenario FAILS" enabled="true"><stringProp name="cacheKey">true</stringProp><stringProp name="filename"></stringProp><stringProp name="parameters"></stringProp><stringProp name="script">if (vars.get('ENV_OK') != 'true') { AssertionResult.setFailure(true); AssertionResult.setFailureMessage('environment not valid: ' + vars.get('ENV_WHY')) }</stringProp><stringProp name="scriptLanguage">groovy</stringProp></JSR223Assertion><hashTree></hashTree><ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="HTTP status is exactly 404" enabled="true"><collectionProp name="Asserion.test_strings"><stringProp name="1">404</stringProp></collectionProp><stringProp name="Assertion.custom_message"></stringProp><stringProp name="Assertion.test_field">Assertion.response_code</stringProp><boolProp name="Assertion.assume_success">true</boolProp><intProp name="Assertion.test_type">8</intProp></ResponseAssertion><hashTree></hashTree><JSR223Assertion guiclass="TestBeanGUI" testclass="JSR223Assertion" testname="404 body is exactly the generic message and discloses no appointment, patient, payment or cancellation data" enabled="true"><stringProp name="cacheKey">true</stringProp><stringProp name="filename"></stringProp><stringProp name="parameters"></stringProp><stringProp name="script">
+import groovy.json.JsonSlurper
+def deep; deep = { x -&gt; x instanceof Map ? x.collectEntries { k, v -&gt; [(k): deep(v)] } : (x instanceof List ? x.collect { deep(it) } : x) }
+def fx = deep(new JsonSlurper().parseText(new File(props.get('fixturesFile')).text))
+def byId = { int id -&gt; fx.appointments.find { it.id == id } }
+def finish = { List fails -&gt; if (fails) { AssertionResult.setFailure(true); AssertionResult.setFailureMessage(fails.take(5).join('; ')) } }
+def sameNumber = { x, y -&gt; x != null &amp;&amp; y != null &amp;&amp; new java.math.BigDecimal(String.valueOf(x)).compareTo(new java.math.BigDecimal(String.valueOf(y))) == 0 }
+def ELIG_KEYS = ['appointmentId','allowed','reasonCode','message','refundOutcome','refundAmount','requiresNoRefundAcknowledgement','version','cancellation'] as Set
+def checkEligibility = { Map json, int id, List fails -&gt;
+  def e = byId(id).expected
+  if (json.keySet() as Set != ELIG_KEYS) { fails &lt;&lt; ('fields differ from the contract: ' + ((json.keySet() as Set) - ELIG_KEYS) + ' extra, ' + (ELIG_KEYS - (json.keySet() as Set)) + ' missing') }
+  if (json.appointmentId != id) { fails &lt;&lt; ('appointmentId ' + json.appointmentId + ', expected ' + id) }
+  if (json.allowed != e.allowed) { fails &lt;&lt; ('allowed = ' + json.allowed + ', expected ' + e.allowed) }
+  if (json.reasonCode != e.reasonCode) { fails &lt;&lt; ('reasonCode = ' + json.reasonCode + ', expected ' + e.reasonCode) }
+  if (json.message != e.message) { fails &lt;&lt; ('message = ' + json.message + ', expected ' + e.message) }
+  if (json.refundOutcome != e.refundOutcome) { fails &lt;&lt; ('refundOutcome = ' + json.refundOutcome + ', expected ' + e.refundOutcome) }
+  if (!sameNumber(json.refundAmount, e.refundAmount)) { fails &lt;&lt; ('refundAmount = ' + json.refundAmount + ', expected ' + e.refundAmount) }
+  if (json.requiresNoRefundAcknowledgement != e.requiresNoRefundAcknowledgement) { fails &lt;&lt; ('requiresNoRefundAcknowledgement = ' + json.requiresNoRefundAcknowledgement) }
+  if (json.cancellation != null) { fails &lt;&lt; 'a cancellation is already stored for this appointment (the database was not fresh)' }
+  def v = String.valueOf(json.version)
+  if (!(v ==~ /^[0-9A-F]{64}$/)) { fails &lt;&lt; ('version is not a valid 64-character hexadecimal version: ' + v) }
+  else if (v != e.version) { fails &lt;&lt; 'version is valid but differs from the version computed offline from the seeded rows (the offline port and the server disagree)' }
+}
+def fails = []
+def raw = prev.getResponseDataAsString() ?: ''
+
+def leak = { int id -&gt;
+  def a = byId(id)
+  [a.appointmentReference, a.patientId, 'Dr Synthetic', 'Cash', 'BankTransfer', '1500', 'Booked'].each { s -&gt; if (raw.contains(s)) { fails &lt;&lt; ('response discloses appointment data: ' + s) } }
+}
+
+leak(Integer.parseInt(vars.get('TARGET_ID')))
+// the controller answers NotFound(new { message = "Appointment not found." }): exactly that, nothing else
+def j = null
+try { j = new JsonSlurper().parseText(raw) } catch (Exception ex) { fails &lt;&lt; 'the 404 body is not JSON' }
+if (j instanceof Map) {
+  if ((j.keySet() as Set) != (['message'] as Set)) { fails &lt;&lt; ('unexpected fields in the 404 body: ' + j.keySet()) }
+  if (j.message != 'Appointment not found.') { fails &lt;&lt; ('unexpected 404 message: ' + j.message) }
+} else if (j != null) { fails &lt;&lt; 'the 404 body is not a JSON object' }
+if (raw.contains('version') || raw.contains('allowed') || raw.contains('refund')) { fails &lt;&lt; 'the 404 body contains cancellation information' }
+
+finish(fails)</stringProp><stringProp name="scriptLanguage">groovy</stringProp></JSR223Assertion><hashTree></hashTree><DurationAssertion guiclass="DurationAssertionGui" testclass="DurationAssertion" testname="Sanity cap: answered within 3000 ms (NOT a performance claim)" enabled="true"><stringProp name="DurationAssertion.duration">3000</stringProp></DurationAssertion><hashTree></hashTree></hashTree></hashTree><ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="JM-04 Doctor-role token on a patient endpoint" enabled="true"><stringProp name="TestPlan.comments">ONE request: GET eligibility of appointment 48001 with a valid synthetic DOCTOR token. 403 (authenticated, wrong role) with an empty body. Only this one non-patient case can be covered by one request.</stringProp><stringProp name="ThreadGroup.on_sample_error">continue</stringProp><elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true"><boolProp name="LoopController.continue_forever">false</boolProp><stringProp name="LoopController.loops">1</stringProp></elementProp><stringProp name="ThreadGroup.num_threads">1</stringProp><stringProp name="ThreadGroup.ramp_time">0</stringProp><boolProp name="ThreadGroup.scheduler">false</boolProp><stringProp name="ThreadGroup.duration"></stringProp><stringProp name="ThreadGroup.delay"></stringProp><boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp></ThreadGroup><hashTree><HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="JM-04 Doctor-role token on a patient endpoint" enabled="true"><stringProp name="HTTPSampler.domain">localhost</stringProp><stringProp name="HTTPSampler.port">5248</stringProp><stringProp name="HTTPSampler.protocol">http</stringProp><stringProp name="HTTPSampler.path">/api/patient/appointments/${TARGET_ID}/cancellation</stringProp><stringProp name="HTTPSampler.method">GET</stringProp><boolProp name="HTTPSampler.follow_redirects">false</boolProp><boolProp name="HTTPSampler.auto_redirects">false</boolProp><boolProp name="HTTPSampler.use_keepalive">true</boolProp><boolProp name="HTTPSampler.DO_MULTIPART_POST">false</boolProp><boolProp name="HTTPSampler.image_parser">false</boolProp><stringProp name="HTTPSampler.connect_timeout">5000</stringProp><stringProp name="HTTPSampler.response_timeout">30000</stringProp></HTTPSamplerProxy><hashTree><HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Headers" enabled="true"><collectionProp name="HeaderManager.headers"><elementProp name="" elementType="Header"><stringProp name="Header.name">Authorization</stringProp><stringProp name="Header.value">Bearer ${TOKEN}</stringProp></elementProp><elementProp name="" elementType="Header"><stringProp name="Header.name">Accept</stringProp><stringProp name="Header.value">application/json</stringProp></elementProp></collectionProp></HeaderManager><hashTree></hashTree><JSR223PreProcessor guiclass="TestBeanGUI" testclass="JSR223PreProcessor" testname="Local JWT, fixtures and environment sanity (never an HTTP call)" enabled="true"><stringProp name="cacheKey">true</stringProp><stringProp name="filename"></stringProp><stringProp name="parameters"></stringProp><stringProp name="script">
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
+import groovy.json.JsonSlurper
+def b64u = { byte[] b -&gt; java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(b) }
+def mint = { String secret, String role, String sub -&gt;
+  def header = b64u('{"alg":"HS256","typ":"JWT"}'.getBytes('UTF-8'))
+  long exp = (long) (System.currentTimeMillis() / 1000L) + 900L
+  def nameId = 'http://schemas.microsoft.com/ws/2008/06/identity/claims/nameidentifier'
+  def roleId = 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role'
+  def payload = b64u(('{"sub":"' + sub + '","' + nameId + '":"' + sub + '","' + roleId + '":"' + role + '","iss":"CareNova.UserAuth","aud":"CareNova.Client","exp":' + exp + '}').getBytes('UTF-8'))
+  def mac = Mac.getInstance('HmacSHA256'); mac.init(new SecretKeySpec(secret.getBytes('UTF-8'), 'HmacSHA256'))
+  header + '.' + payload + '.' + b64u(mac.doFinal((header + '.' + payload).getBytes('UTF-8')))
+}
+def deep; deep = { x -&gt; x instanceof Map ? x.collectEntries { k, v -&gt; [(k): deep(v)] } : (x instanceof List ? x.collect { deep(it) } : x) }
+
+def why = []
+def secret = System.getenv('GCN48_JWT_SECRET')
+if (!secret) { why &lt;&lt; 'GCN48_JWT_SECRET is not in the environment of the JMeter process' }
+def fx = null
+def f = new File(props.get('fixturesFile') ?: '')
+if (!f.exists()) { why &lt;&lt; 'fixtures file missing' } else {
+  fx = deep(new JsonSlurper().parseText(f.text))
+  if (fx.synthetic != true) { why &lt;&lt; 'fixtures are not marked synthetic' }
+  if (java.time.Instant.now().isAfter(java.time.Instant.parse(fx.validUntilUtc))) { why &lt;&lt; 'fixtures are older than 36 hours: re-seed a new empty database' }
+}
+String role = 'None'; String sub = '00000000-0000-0000-0000-000000000000'
+if (fx != null) {
+  def t = fx.targets['JM-04']
+  role = t.role ?: 'Patient'; sub = fx.actors[t.actor]
+  vars.put('TARGET_ID', String.valueOf(t.appointmentId))
+  if (t.expectedVersion != null) { vars.put('EXPECTED_VERSION', t.expectedVersion); vars.put('CANCEL_REASON', t.reason) }
+}
+vars.put('ENV_OK', why.isEmpty() ? 'true' : 'false'); vars.put('ENV_WHY', why.join('; '))
+vars.put('TOKEN', (secret &amp;&amp; fx != null) ? mint(secret, role, sub) : 'invalid')
+</stringProp><stringProp name="scriptLanguage">groovy</stringProp></JSR223PreProcessor><hashTree></hashTree><JSR223Assertion guiclass="TestBeanGUI" testclass="JSR223Assertion" testname="Environment sanity (secret present, synthetic fresh fixtures): otherwise the scenario FAILS" enabled="true"><stringProp name="cacheKey">true</stringProp><stringProp name="filename"></stringProp><stringProp name="parameters"></stringProp><stringProp name="script">if (vars.get('ENV_OK') != 'true') { AssertionResult.setFailure(true); AssertionResult.setFailureMessage('environment not valid: ' + vars.get('ENV_WHY')) }</stringProp><stringProp name="scriptLanguage">groovy</stringProp></JSR223Assertion><hashTree></hashTree><ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="HTTP status is exactly 403" enabled="true"><collectionProp name="Asserion.test_strings"><stringProp name="1">403</stringProp></collectionProp><stringProp name="Assertion.custom_message"></stringProp><stringProp name="Assertion.test_field">Assertion.response_code</stringProp><boolProp name="Assertion.assume_success">true</boolProp><intProp name="Assertion.test_type">8</intProp></ResponseAssertion><hashTree></hashTree><JSR223Assertion guiclass="TestBeanGUI" testclass="JSR223Assertion" testname="Empty body: nothing about the appointment is disclosed to a Doctor" enabled="true"><stringProp name="cacheKey">true</stringProp><stringProp name="filename"></stringProp><stringProp name="parameters"></stringProp><stringProp name="script">
+import groovy.json.JsonSlurper
+def deep; deep = { x -&gt; x instanceof Map ? x.collectEntries { k, v -&gt; [(k): deep(v)] } : (x instanceof List ? x.collect { deep(it) } : x) }
+def fx = deep(new JsonSlurper().parseText(new File(props.get('fixturesFile')).text))
+def byId = { int id -&gt; fx.appointments.find { it.id == id } }
+def finish = { List fails -&gt; if (fails) { AssertionResult.setFailure(true); AssertionResult.setFailureMessage(fails.take(5).join('; ')) } }
+def sameNumber = { x, y -&gt; x != null &amp;&amp; y != null &amp;&amp; new java.math.BigDecimal(String.valueOf(x)).compareTo(new java.math.BigDecimal(String.valueOf(y))) == 0 }
+def ELIG_KEYS = ['appointmentId','allowed','reasonCode','message','refundOutcome','refundAmount','requiresNoRefundAcknowledgement','version','cancellation'] as Set
+def checkEligibility = { Map json, int id, List fails -&gt;
+  def e = byId(id).expected
+  if (json.keySet() as Set != ELIG_KEYS) { fails &lt;&lt; ('fields differ from the contract: ' + ((json.keySet() as Set) - ELIG_KEYS) + ' extra, ' + (ELIG_KEYS - (json.keySet() as Set)) + ' missing') }
+  if (json.appointmentId != id) { fails &lt;&lt; ('appointmentId ' + json.appointmentId + ', expected ' + id) }
+  if (json.allowed != e.allowed) { fails &lt;&lt; ('allowed = ' + json.allowed + ', expected ' + e.allowed) }
+  if (json.reasonCode != e.reasonCode) { fails &lt;&lt; ('reasonCode = ' + json.reasonCode + ', expected ' + e.reasonCode) }
+  if (json.message != e.message) { fails &lt;&lt; ('message = ' + json.message + ', expected ' + e.message) }
+  if (json.refundOutcome != e.refundOutcome) { fails &lt;&lt; ('refundOutcome = ' + json.refundOutcome + ', expected ' + e.refundOutcome) }
+  if (!sameNumber(json.refundAmount, e.refundAmount)) { fails &lt;&lt; ('refundAmount = ' + json.refundAmount + ', expected ' + e.refundAmount) }
+  if (json.requiresNoRefundAcknowledgement != e.requiresNoRefundAcknowledgement) { fails &lt;&lt; ('requiresNoRefundAcknowledgement = ' + json.requiresNoRefundAcknowledgement) }
+  if (json.cancellation != null) { fails &lt;&lt; 'a cancellation is already stored for this appointment (the database was not fresh)' }
+  def v = String.valueOf(json.version)
+  if (!(v ==~ /^[0-9A-F]{64}$/)) { fails &lt;&lt; ('version is not a valid 64-character hexadecimal version: ' + v) }
+  else if (v != e.version) { fails &lt;&lt; 'version is valid but differs from the version computed offline from the seeded rows (the offline port and the server disagree)' }
+}
+def fails = []
+def raw = prev.getResponseDataAsString() ?: ''
+
+def leak = { int id -&gt;
+  def a = byId(id)
+  [a.appointmentReference, a.patientId, 'Dr Synthetic', 'Cash', 'BankTransfer', '1500', 'Booked'].each { s -&gt; if (raw.contains(s)) { fails &lt;&lt; ('response discloses appointment data: ' + s) } }
+}
+
+if (raw.length() != 0) { fails &lt;&lt; ('the body should be empty (the authorization middleware answers 403 without a body), but has ' + raw.length() + ' bytes') }
+leak(Integer.parseInt(vars.get('TARGET_ID')))
+
+finish(fails)</stringProp><stringProp name="scriptLanguage">groovy</stringProp></JSR223Assertion><hashTree></hashTree><DurationAssertion guiclass="DurationAssertionGui" testclass="DurationAssertion" testname="Sanity cap: answered within 3000 ms (NOT a performance claim)" enabled="true"><stringProp name="DurationAssertion.duration">3000</stringProp></DurationAssertion><hashTree></hashTree></hashTree></hashTree><ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="JM-05 Valid bank-transfer cancellation" enabled="true"><stringProp name="TestPlan.comments">ONE request: POST the cancellation of patient 1's verified bank-transfer appointment 48005 (72 hours before its start) with the expectedVersion computed offline and verified against the real backend code. 200, Cancelled, refund Eligible, PendingManualProcessing. The cancellation row, the manual-refund row and all unchanged data are verified afterwards by read-only SQL, not by HTTP.</stringProp><stringProp name="ThreadGroup.on_sample_error">continue</stringProp><elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true"><boolProp name="LoopController.continue_forever">false</boolProp><stringProp name="LoopController.loops">1</stringProp></elementProp><stringProp name="ThreadGroup.num_threads">1</stringProp><stringProp name="ThreadGroup.ramp_time">0</stringProp><boolProp name="ThreadGroup.scheduler">false</boolProp><stringProp name="ThreadGroup.duration"></stringProp><stringProp name="ThreadGroup.delay"></stringProp><boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp></ThreadGroup><hashTree><HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="JM-05 Valid bank-transfer cancellation" enabled="true"><boolProp name="HTTPSampler.postBodyRaw">true</boolProp><elementProp name="HTTPsampler.Arguments" elementType="Arguments"><collectionProp name="Arguments.arguments"><elementProp name="" elementType="HTTPArgument"><boolProp name="HTTPArgument.always_encode">false</boolProp><stringProp name="Argument.value">{"expectedVersion":"${EXPECTED_VERSION}","acknowledgeNoRefund":false,"reason":"${CANCEL_REASON}"}</stringProp><stringProp name="Argument.metadata">=</stringProp></elementProp></collectionProp></elementProp><stringProp name="HTTPSampler.domain">localhost</stringProp><stringProp name="HTTPSampler.port">5248</stringProp><stringProp name="HTTPSampler.protocol">http</stringProp><stringProp name="HTTPSampler.path">/api/patient/appointments/${TARGET_ID}/cancellation</stringProp><stringProp name="HTTPSampler.method">POST</stringProp><boolProp name="HTTPSampler.follow_redirects">false</boolProp><boolProp name="HTTPSampler.auto_redirects">false</boolProp><boolProp name="HTTPSampler.use_keepalive">true</boolProp><boolProp name="HTTPSampler.DO_MULTIPART_POST">false</boolProp><boolProp name="HTTPSampler.image_parser">false</boolProp><stringProp name="HTTPSampler.connect_timeout">5000</stringProp><stringProp name="HTTPSampler.response_timeout">30000</stringProp></HTTPSamplerProxy><hashTree><HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Headers" enabled="true"><collectionProp name="HeaderManager.headers"><elementProp name="" elementType="Header"><stringProp name="Header.name">Authorization</stringProp><stringProp name="Header.value">Bearer ${TOKEN}</stringProp></elementProp><elementProp name="" elementType="Header"><stringProp name="Header.name">Accept</stringProp><stringProp name="Header.value">application/json</stringProp></elementProp><elementProp name="" elementType="Header"><stringProp name="Header.name">Content-Type</stringProp><stringProp name="Header.value">application/json</stringProp></elementProp></collectionProp></HeaderManager><hashTree></hashTree><JSR223PreProcessor guiclass="TestBeanGUI" testclass="JSR223PreProcessor" testname="Local JWT, fixtures and environment sanity (never an HTTP call)" enabled="true"><stringProp name="cacheKey">true</stringProp><stringProp name="filename"></stringProp><stringProp name="parameters"></stringProp><stringProp name="script">
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
+import groovy.json.JsonSlurper
+def b64u = { byte[] b -&gt; java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(b) }
+def mint = { String secret, String role, String sub -&gt;
+  def header = b64u('{"alg":"HS256","typ":"JWT"}'.getBytes('UTF-8'))
+  long exp = (long) (System.currentTimeMillis() / 1000L) + 900L
+  def nameId = 'http://schemas.microsoft.com/ws/2008/06/identity/claims/nameidentifier'
+  def roleId = 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role'
+  def payload = b64u(('{"sub":"' + sub + '","' + nameId + '":"' + sub + '","' + roleId + '":"' + role + '","iss":"CareNova.UserAuth","aud":"CareNova.Client","exp":' + exp + '}').getBytes('UTF-8'))
+  def mac = Mac.getInstance('HmacSHA256'); mac.init(new SecretKeySpec(secret.getBytes('UTF-8'), 'HmacSHA256'))
+  header + '.' + payload + '.' + b64u(mac.doFinal((header + '.' + payload).getBytes('UTF-8')))
+}
+def deep; deep = { x -&gt; x instanceof Map ? x.collectEntries { k, v -&gt; [(k): deep(v)] } : (x instanceof List ? x.collect { deep(it) } : x) }
+
+def why = []
+def secret = System.getenv('GCN48_JWT_SECRET')
+if (!secret) { why &lt;&lt; 'GCN48_JWT_SECRET is not in the environment of the JMeter process' }
+def fx = null
+def f = new File(props.get('fixturesFile') ?: '')
+if (!f.exists()) { why &lt;&lt; 'fixtures file missing' } else {
+  fx = deep(new JsonSlurper().parseText(f.text))
+  if (fx.synthetic != true) { why &lt;&lt; 'fixtures are not marked synthetic' }
+  if (java.time.Instant.now().isAfter(java.time.Instant.parse(fx.validUntilUtc))) { why &lt;&lt; 'fixtures are older than 36 hours: re-seed a new empty database' }
+}
+String role = 'None'; String sub = '00000000-0000-0000-0000-000000000000'
+if (fx != null) {
+  def t = fx.targets['JM-05']
+  role = t.role ?: 'Patient'; sub = fx.actors[t.actor]
+  vars.put('TARGET_ID', String.valueOf(t.appointmentId))
+  if (t.expectedVersion != null) { vars.put('EXPECTED_VERSION', t.expectedVersion); vars.put('CANCEL_REASON', t.reason) }
+}
+vars.put('ENV_OK', why.isEmpty() ? 'true' : 'false'); vars.put('ENV_WHY', why.join('; '))
+vars.put('TOKEN', (secret &amp;&amp; fx != null) ? mint(secret, role, sub) : 'invalid')
+</stringProp><stringProp name="scriptLanguage">groovy</stringProp></JSR223PreProcessor><hashTree></hashTree><JSR223Assertion guiclass="TestBeanGUI" testclass="JSR223Assertion" testname="Environment sanity (secret present, synthetic fresh fixtures): otherwise the scenario FAILS" enabled="true"><stringProp name="cacheKey">true</stringProp><stringProp name="filename"></stringProp><stringProp name="parameters"></stringProp><stringProp name="script">if (vars.get('ENV_OK') != 'true') { AssertionResult.setFailure(true); AssertionResult.setFailureMessage('environment not valid: ' + vars.get('ENV_WHY')) }</stringProp><stringProp name="scriptLanguage">groovy</stringProp></JSR223Assertion><hashTree></hashTree><ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="HTTP status is exactly 200" enabled="true"><collectionProp name="Asserion.test_strings"><stringProp name="1">200</stringProp></collectionProp><stringProp name="Assertion.custom_message"></stringProp><stringProp name="Assertion.test_field">Assertion.response_code</stringProp><boolProp name="Assertion.assume_success">false</boolProp><intProp name="Assertion.test_type">8</intProp></ResponseAssertion><hashTree></hashTree><ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Content-Type is JSON" enabled="true"><collectionProp name="Asserion.test_strings"><stringProp name="1">application/json</stringProp></collectionProp><stringProp name="Assertion.custom_message"></stringProp><stringProp name="Assertion.test_field">Assertion.response_headers</stringProp><boolProp name="Assertion.assume_success">false</boolProp><intProp name="Assertion.test_type">16</intProp></ResponseAssertion><hashTree></hashTree><JSR223Assertion guiclass="TestBeanGUI" testclass="JSR223Assertion" testname="The response confirms the cancellation: Cancelled, Eligible refund of the paid amount, PendingManualProcessing, the reason that was sent, a fresh UTC timestamp" enabled="true"><stringProp name="cacheKey">true</stringProp><stringProp name="filename"></stringProp><stringProp name="parameters"></stringProp><stringProp name="script">
+import groovy.json.JsonSlurper
+def deep; deep = { x -&gt; x instanceof Map ? x.collectEntries { k, v -&gt; [(k): deep(v)] } : (x instanceof List ? x.collect { deep(it) } : x) }
+def fx = deep(new JsonSlurper().parseText(new File(props.get('fixturesFile')).text))
+def byId = { int id -&gt; fx.appointments.find { it.id == id } }
+def finish = { List fails -&gt; if (fails) { AssertionResult.setFailure(true); AssertionResult.setFailureMessage(fails.take(5).join('; ')) } }
+def sameNumber = { x, y -&gt; x != null &amp;&amp; y != null &amp;&amp; new java.math.BigDecimal(String.valueOf(x)).compareTo(new java.math.BigDecimal(String.valueOf(y))) == 0 }
+def ELIG_KEYS = ['appointmentId','allowed','reasonCode','message','refundOutcome','refundAmount','requiresNoRefundAcknowledgement','version','cancellation'] as Set
+def checkEligibility = { Map json, int id, List fails -&gt;
+  def e = byId(id).expected
+  if (json.keySet() as Set != ELIG_KEYS) { fails &lt;&lt; ('fields differ from the contract: ' + ((json.keySet() as Set) - ELIG_KEYS) + ' extra, ' + (ELIG_KEYS - (json.keySet() as Set)) + ' missing') }
+  if (json.appointmentId != id) { fails &lt;&lt; ('appointmentId ' + json.appointmentId + ', expected ' + id) }
+  if (json.allowed != e.allowed) { fails &lt;&lt; ('allowed = ' + json.allowed + ', expected ' + e.allowed) }
+  if (json.reasonCode != e.reasonCode) { fails &lt;&lt; ('reasonCode = ' + json.reasonCode + ', expected ' + e.reasonCode) }
+  if (json.message != e.message) { fails &lt;&lt; ('message = ' + json.message + ', expected ' + e.message) }
+  if (json.refundOutcome != e.refundOutcome) { fails &lt;&lt; ('refundOutcome = ' + json.refundOutcome + ', expected ' + e.refundOutcome) }
+  if (!sameNumber(json.refundAmount, e.refundAmount)) { fails &lt;&lt; ('refundAmount = ' + json.refundAmount + ', expected ' + e.refundAmount) }
+  if (json.requiresNoRefundAcknowledgement != e.requiresNoRefundAcknowledgement) { fails &lt;&lt; ('requiresNoRefundAcknowledgement = ' + json.requiresNoRefundAcknowledgement) }
+  if (json.cancellation != null) { fails &lt;&lt; 'a cancellation is already stored for this appointment (the database was not fresh)' }
+  def v = String.valueOf(json.version)
+  if (!(v ==~ /^[0-9A-F]{64}$/)) { fails &lt;&lt; ('version is not a valid 64-character hexadecimal version: ' + v) }
+  else if (v != e.version) { fails &lt;&lt; 'version is valid but differs from the version computed offline from the seeded rows (the offline port and the server disagree)' }
+}
+def fails = []
+def raw = prev.getResponseDataAsString() ?: ''
+
+def json = new JsonSlurper().parseText(raw)
+def a = byId(Integer.parseInt(vars.get('TARGET_ID')))
+def KEYS = ['appointmentId','appointmentReference','status','cancelledAtUtc','refundOutcome','refundAmount','refundStatus','reason','message'] as Set
+if (!(json instanceof Map)) { fails &lt;&lt; 'body is not a JSON object' } else {
+  if (json.keySet() as Set != KEYS) { fails &lt;&lt; ('fields differ from the contract: ' + json.keySet()) }
+  if (json.appointmentId != a.id) { fails &lt;&lt; ('appointmentId ' + json.appointmentId + ', expected ' + a.id) }
+  if (json.appointmentReference != a.appointmentReference) { fails &lt;&lt; ('appointmentReference ' + json.appointmentReference) }
+  if (json.status != 'Cancelled') { fails &lt;&lt; ('status ' + json.status + ', expected Cancelled') }
+  if (json.refundOutcome != 'Eligible') { fails &lt;&lt; ('refundOutcome ' + json.refundOutcome + ', expected Eligible') }
+  if (!sameNumber(json.refundAmount, a.amount)) { fails &lt;&lt; ('refundAmount ' + json.refundAmount + ', expected ' + a.amount) }
+  if (json.refundStatus != 'PendingManualProcessing') { fails &lt;&lt; ('refundStatus ' + json.refundStatus + ', expected PendingManualProcessing') }
+  if (json.reason != vars.get('CANCEL_REASON')) { fails &lt;&lt; ('reason ' + json.reason + ', expected the reason that was sent') }
+  if (json.message != a.expected.message) { fails &lt;&lt; ('message ' + json.message) }
+  def u = String.valueOf(json.cancelledAtUtc)
+  if (!(u ==~ /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,7})?Z$/)) { fails &lt;&lt; ('cancelledAtUtc is not a UTC timestamp: ' + u) }
+  else { long skew = Math.abs(java.time.Duration.between(java.time.Instant.parse(u), java.time.Instant.now()).toMinutes()); if (skew &gt; 10) { fails &lt;&lt; ('cancelledAtUtc is ' + skew + ' minutes away from the local clock') } }
+}
+
+finish(fails)</stringProp><stringProp name="scriptLanguage">groovy</stringProp></JSR223Assertion><hashTree></hashTree><DurationAssertion guiclass="DurationAssertionGui" testclass="DurationAssertion" testname="Sanity cap: answered within 3000 ms (NOT a performance claim)" enabled="true"><stringProp name="DurationAssertion.duration">3000</stringProp></DurationAssertion><hashTree></hashTree><JSR223PostProcessor guiclass="TestBeanGUI" testclass="JSR223PostProcessor" testname="Write the response fields to a local evidence file (not HTTP)" enabled="true"><stringProp name="cacheKey">true</stringProp><stringProp name="filename"></stringProp><stringProp name="parameters"></stringProp><stringProp name="script">
+// non-HTTP evidence for the read-only database check after the run: only the contract fields of the 200 response
+def j = new groovy.json.JsonSlurper().parseText(prev.getResponseDataAsString())
+new File(props.get('evidenceDir'), 'jm05-response.json').text = groovy.json.JsonOutput.toJson([appointmentId: j.appointmentId, status: j.status, cancelledAtUtc: j.cancelledAtUtc, refundOutcome: j.refundOutcome,
+  refundAmount: j.refundAmount, refundStatus: j.refundStatus, reason: j.reason, httpStatus: prev.getResponseCode()])
+</stringProp><stringProp name="scriptLanguage">groovy</stringProp></JSR223PostProcessor><hashTree></hashTree></hashTree></hashTree></hashTree></hashTree></jmeterTestPlan>

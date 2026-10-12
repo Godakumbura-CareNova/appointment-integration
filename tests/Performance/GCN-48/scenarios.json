@@ -1,0 +1,49 @@
+{
+  "total_http_requests": 5,
+  "iterations_per_scenario": 1,
+  "threads_per_scenario": 1,
+  "note": "Functional and latency smoke test. A single request per scenario proves behaviour for ONE input each. It is not a load, concurrency or performance test; the 3000 ms limit is a sanity cap only.",
+  "scenarios": {
+    "JM-01": {
+      "name": "Own unpaid appointment eligibility",
+      "method": "GET",
+      "path": "/api/patient/appointments/48001/cancellation",
+      "role": "Patient (patient 1)",
+      "expected_status": 200,
+      "expected_requests": 1
+    },
+    "JM-02": {
+      "name": "Restricted cash-paid appointment eligibility",
+      "method": "GET",
+      "path": "/api/patient/appointments/48002/cancellation",
+      "role": "Patient (patient 1)",
+      "expected_status": 200,
+      "expected_requests": 1
+    },
+    "JM-03": {
+      "name": "Another patient's appointment access",
+      "method": "GET",
+      "path": "/api/patient/appointments/48101/cancellation",
+      "role": "Patient (patient 1; appointment belongs to patient 2)",
+      "expected_status": 404,
+      "expected_requests": 1
+    },
+    "JM-04": {
+      "name": "Doctor-role token on a patient endpoint",
+      "method": "GET",
+      "path": "/api/patient/appointments/48001/cancellation",
+      "role": "Doctor",
+      "expected_status": 403,
+      "expected_requests": 1
+    },
+    "JM-05": {
+      "name": "Valid bank-transfer cancellation",
+      "method": "POST",
+      "path": "/api/patient/appointments/48005/cancellation",
+      "role": "Patient (patient 1)",
+      "expected_status": 200,
+      "expected_requests": 1,
+      "database_verification": "read-only SQL after the run: appointment Cancelled, exactly one cancellation row and one manual-refund row (PendingManualProcessing), timestamps equal, nothing else changed"
+    }
+  }
+}

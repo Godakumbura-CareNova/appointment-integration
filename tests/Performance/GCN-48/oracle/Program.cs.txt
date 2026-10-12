@@ -1,0 +1,55 @@
+// GCN-48 version oracle. Runs the REAL backend code, offline:
+//   vectors   stdin = JSON array of snapshots; stdout = JSON array with the decision and the confirmation version computed by
+//             AppointmentCancellationPolicy.Evaluate and AppointmentCancellationService.Version (private, called by reflection).
+//   db        reads ONE appointment's eligibility through the real AppointmentCancellationService.GetEligibilityAsync (SELECT statements only; nothing is written).
+//             The connection string comes from the environment variable GCN48_ORACLE_CONNECTION and is never printed.
+// No HTTP request is made by either mode.
+using System.Globalization;
+using System.Reflection;
+using System.Text.Json;
+using AppointmentIntegration.Api.Data;
+using AppointmentIntegration.Api.Services;
+using Microsoft.EntityFrameworkCore;
+
+static DateTime? Dt(JsonElement e, string name)
+{
+    if (!e.TryGetProperty(name, out var v) || v.ValueKind == JsonValueKind.Null) return null;
+    // MySQL text "yyyy-MM-dd HH:mm:ss.ffffff" -> kind Unspecified, exactly what the database provider hands to the service
+    return DateTime.SpecifyKind(DateTime.ParseExact(v.GetString()!, "yyyy-MM-dd HH:mm:ss.ffffff", CultureInfo.InvariantCulture), DateTimeKind.Unspecified);
+}
+
+if (args.Length == 0) { Console.Error.WriteLine("usage: vectors | db <appointmentId> <patientGuid>"); return 2; }
+if (args[0] == "vectors")
+{
+    var versionMethod = typeof(AppointmentCancellationService).GetMethod("Version", BindingFlags.NonPublic | BindingFlags.Static)
+        ?? throw new InvalidOperationException("AppointmentCancellationService.Version was not found: the backend changed, update the oracle");
+    var input = JsonDocument.Parse(Console.In.ReadToEnd()).RootElement;
+    var result = new List<object>();
+    foreach (var e in input.EnumerateArray())
+    {
+        var snapshot = new CancellationSnapshot(e.GetProperty("appointmentId").GetInt32(), Guid.Parse(e.GetProperty("patientId").GetString()!), e.GetProperty("status").GetString()!,
+            Dt(e, "startUtc")!.Value, Dt(e, "endUtc")!.Value, Dt(e, "updatedAtUtc"),
+            e.GetProperty("paymentId").ValueKind == JsonValueKind.Null ? null : e.GetProperty("paymentId").GetInt32(),
+            e.GetProperty("method").GetString(), e.GetProperty("paymentStatus").GetString(), decimal.Parse(e.GetProperty("amount").GetString()!, CultureInfo.InvariantCulture),
+            Dt(e, "paymentUpdatedAtUtc"), e.GetProperty("hasPendingCheckout").GetBoolean(), e.GetProperty("attemptsVersion").GetString()!, e.GetProperty("hasSuccessfulCheckout").GetBoolean());
+        var now = DateTime.SpecifyKind(Dt(e, "nowUtc")!.Value, DateTimeKind.Utc);
+        var decision = AppointmentCancellationPolicy.Evaluate(snapshot, now);
+        var version = (string)versionMethod.Invoke(null, new object[] { snapshot, decision })!;
+        result.Add(new { appointmentId = snapshot.AppointmentId, version, allowed = decision.Allowed, reasonCode = decision.ReasonCode, refundOutcome = decision.RefundOutcome, refundAmount = decision.RefundAmount, requiresAck = decision.RequiresNoRefundAcknowledgement });
+    }
+    Console.WriteLine(JsonSerializer.Serialize(result));
+    return 0;
+}
+if (args[0] == "db" && args.Length == 3)
+{
+    var connection = Environment.GetEnvironmentVariable("GCN48_ORACLE_CONNECTION");
+    if (string.IsNullOrEmpty(connection)) { Console.Error.WriteLine("GCN48_ORACLE_CONNECTION is not set"); return 2; }
+    var options = new DbContextOptionsBuilder<AppDbContext>().UseMySql(connection, new MySqlServerVersion(new Version(8, 0, 0))).Options;
+    await using var db = new AppDbContext(options);
+    var service = new AppointmentCancellationService(db, TimeProvider.System, new AppointmentMutationScope(db));
+    var eligibility = await service.GetEligibilityAsync(Guid.Parse(args[2]), int.Parse(args[1]));
+    Console.WriteLine(eligibility is null ? "null" : JsonSerializer.Serialize(new { appointmentId = eligibility.AppointmentId, version = eligibility.Version, allowed = eligibility.Allowed, reasonCode = eligibility.ReasonCode,
+        refundOutcome = eligibility.RefundOutcome, refundAmount = eligibility.RefundAmount, requiresAck = eligibility.RequiresNoRefundAcknowledgement }));
+    return 0;
+}
+Console.Error.WriteLine("usage: vectors | db <appointmentId> <patientGuid>"); return 2;

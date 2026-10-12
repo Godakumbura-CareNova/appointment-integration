@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Copied by gcn48_check_version.py to a temporary folder OUTSIDE the repositories and built there; it is never part of any repository build.
+       It references the PUBLISHED backend build (ApiDir), so it runs the real AppointmentCancellationPolicy and AppointmentCancellationService.Version code. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <ApiDir Condition="'$(ApiDir)' == ''">api</ApiDir>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="AppointmentIntegration.Api"><HintPath>$(ApiDir)/AppointmentIntegration.Api.dll</HintPath></Reference>
+    <Reference Include="Microsoft.EntityFrameworkCore"><HintPath>$(ApiDir)/Microsoft.EntityFrameworkCore.dll</HintPath></Reference>
+    <Reference Include="Microsoft.EntityFrameworkCore.Relational"><HintPath>$(ApiDir)/Microsoft.EntityFrameworkCore.Relational.dll</HintPath></Reference>
+    <Reference Include="Pomelo.EntityFrameworkCore.MySql"><HintPath>$(ApiDir)/Pomelo.EntityFrameworkCore.MySql.dll</HintPath></Reference>
+    <Reference Include="MySqlConnector"><HintPath>$(ApiDir)/MySqlConnector.dll</HintPath></Reference>
+  </ItemGroup>
+</Project>

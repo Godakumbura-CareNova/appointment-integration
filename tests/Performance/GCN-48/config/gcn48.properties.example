@@ -1,0 +1,8 @@
+# Reference values only. No secrets belong here; the JWT secret and DB password
+# live in a mode-600 file outside every git work tree (see README).
+gcn48.host=localhost
+gcn48.port=5248
+gcn48.db.name=carenova_appointment_gcn48_qa
+gcn48.db.user=gcn48_qa
+gcn48.jmeter.stop.port=4548
+gcn48.total.http.requests=5
