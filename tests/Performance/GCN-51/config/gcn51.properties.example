@@ -1,0 +1,14 @@
+# Reference values only. No secrets belong here; the JWT secret and DB password
+# live in a mode-600 file outside every git work tree (see README).
+gcn51.host=localhost
+gcn51.port=5251
+gcn51.db.name=carenova_appointment_gcn51_qa
+gcn51.db.user=gcn51_qa
+gcn51.jmeter.stop.port=4551
+gcn51.total.http.requests=38
+gcn51.samplers=9
+gcn51.scenarios=9
+gcn51.thresholds.sanity.ms=3000
+gcn51.thresholds.repeat.request.ms=1500
+gcn51.thresholds.repeat.mean.ms=400
+gcn51.thresholds.repeat.p95.ms=750

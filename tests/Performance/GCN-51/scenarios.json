@@ -1,0 +1,94 @@
+{
+  "total_requests": 38,
+  "samplers": 9,
+  "threads_per_scenario": 1,
+  "read_only": true,
+  "note": "Functional, response-time and repeated-request stability check on one thread. Not a load, concurrency or capacity test. Thresholds are sanity limits for a local development machine, not service levels.",
+  "scenarios": {
+    "J01": {
+      "name": "Patient dashboard summary",
+      "method": "GET",
+      "path": "/api/patient/dashboard/appointments",
+      "role": "Patient",
+      "expected_status": 200,
+      "requests": 1,
+      "threshold_ms": 3000
+    },
+    "J02": {
+      "name": "Patient dashboard counts and preview",
+      "method": "GET",
+      "path": "/api/patient/dashboard/appointments",
+      "role": "Patient",
+      "expected_status": 200,
+      "requests": 1,
+      "threshold_ms": 3000
+    },
+    "J03": {
+      "name": "Pharmacy staff dashboard summary",
+      "method": "GET",
+      "path": "/api/staff/dashboard/appointment-payments",
+      "role": "PharmacyStaff",
+      "expected_status": 200,
+      "requests": 1,
+      "threshold_ms": 3000
+    },
+    "J04": {
+      "name": "Pharmacy staff payments and income",
+      "method": "GET",
+      "path": "/api/staff/dashboard/appointment-payments",
+      "role": "PharmacyStaff",
+      "expected_status": 200,
+      "requests": 1,
+      "threshold_ms": 3000
+    },
+    "J05": {
+      "name": "Doctor appointments data",
+      "method": "GET",
+      "path": "/api/doctor/appointments",
+      "role": "Doctor",
+      "expected_status": 200,
+      "requests": 1,
+      "threshold_ms": 3000,
+      "note": "REPLACEMENT: this backend has no doctor dashboard endpoint (DoctorDashboardController is empty); the doctor dashboard reads this GCN-47 endpoint."
+    },
+    "J06": {
+      "name": "Unauthenticated dashboard request",
+      "method": "GET",
+      "path": "/api/staff/dashboard/appointment-payments",
+      "role": "none",
+      "expected_status": 401,
+      "requests": 1,
+      "threshold_ms": 3000
+    },
+    "J07": {
+      "name": "Patient on the staff-only dashboard",
+      "method": "GET",
+      "path": "/api/staff/dashboard/appointment-payments",
+      "role": "Patient",
+      "expected_status": 403,
+      "requests": 1,
+      "threshold_ms": 3000
+    },
+    "J08": {
+      "name": "Staff on the patient-only dashboard",
+      "method": "GET",
+      "path": "/api/patient/dashboard/appointments",
+      "role": "PharmacyStaff",
+      "expected_status": 403,
+      "requests": 1,
+      "threshold_ms": 3000
+    },
+    "J09": {
+      "name": "Response time and repeated-request stability",
+      "method": "GET",
+      "path": "/api/staff/dashboard/appointment-payments",
+      "role": "PharmacyStaff",
+      "expected_status": 200,
+      "requests": 30,
+      "threshold_ms": 1500,
+      "mean_threshold_ms": 400,
+      "p95_threshold_ms": 750,
+      "iterations": 30
+    }
+  }
+}
