@@ -59,7 +59,11 @@ public class PublicContentService(IHttpClientFactory clients, IOptions<PublicCon
             if (ids.Length == 0)
             {
                 using var result = await client.GetFromJsonAsync<JsonDocument>(new Uri(root, $"api/public/{kind}?pageSize=4"), token);
-                if (result is null || !result.RootElement.TryGetProperty("items", out var list) || list.ValueKind != JsonValueKind.Array) throw new JsonException("Missing public items.");
+                                if (result is null
+                    || result.RootElement.ValueKind != JsonValueKind.Object
+                    || !result.RootElement.TryGetProperty("items", out var list)
+                    || list.ValueKind != JsonValueKind.Array)
+                    throw new JsonException("Missing public items.");
                 items.AddRange(list.EnumerateArray().Take(4).Select(item => item.Clone()));
             }
             else
@@ -69,8 +73,7 @@ public class PublicContentService(IHttpClientFactory clients, IOptions<PublicCon
                 failed = selected.Any(result => result.Failed);
             }
         }
-        catch (Exception e) when (e is HttpRequestException or JsonException or TaskCanceledException or UriFormatException)
-        {
+        catch (Exception e) when (e is HttpRequestException or JsonException or TaskCanceledException or UriFormatException or InvalidOperationException)        {
             token.ThrowIfCancellationRequested();
             logger.LogWarning(e, "Public {Section} information is unavailable", kind); failed = true;
         }
