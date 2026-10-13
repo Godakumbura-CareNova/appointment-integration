@@ -155,6 +155,16 @@ app.UseHttpsRedirection();
 app.UseCors("PublicFrontend");
 app.Use(async (context, next) => {
     try { await next(); }
+    catch (Microsoft.AspNetCore.Http.BadHttpRequestException badRequest) when (!context.Response.HasStarted) {
+        // A client problem (e.g. body larger than [RequestSizeLimit] -> 413), not a server outage.
+        app.Logger.LogWarning(badRequest, "Rejected a bad request with status {StatusCode}", badRequest.StatusCode);
+        context.Response.StatusCode = badRequest.StatusCode;
+        await context.Response.WriteAsJsonAsync(new {
+            message = badRequest.StatusCode == StatusCodes.Status413PayloadTooLarge
+                ? "Your request is too large. Please shorten it and try again."
+                : "The request could not be read. Please check it and try again."
+        });
+    }
     catch (Exception exception) when (exception is not OperationCanceledException && !context.Response.HasStarted) {
         app.Logger.LogError(exception, "Public information operation failed");
         context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
