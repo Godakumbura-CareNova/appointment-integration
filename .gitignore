@@ -53,5 +53,6 @@ CodeCoverage/
 
 # NUnit
 *.VisualState.xml
+src/AppointmentIntegration.Api/wwwroot/uploads/pharmacy-information/
 TestResult.xml
 nunit-*.xml

@@ -1,0 +1,16 @@
+# Reference values only. No secrets belong here; the JWT secret and DB password
+# live in a mode-600 file outside every git work tree (see README).
+gcn53.host=localhost
+gcn53.port=5253
+gcn53.db.name=carenova_appointment_gcn53_qa
+gcn53.db.user=gcn53_qa
+gcn53.jmeter.stop.port=4553
+# where generated files are written (outside the repository); override with the environment variable GCN53_OUT_DIR
+gcn53.out.dir=~/carenova/qa-reports/GCN-53/jmeter
+gcn53.scenarios=6
+gcn53.samplers=24
+gcn53.total.http.requests=66
+gcn53.thresholds.sanity.ms=3000
+gcn53.thresholds.repeat.request.ms=1500
+gcn53.thresholds.repeat.mean.ms=400
+gcn53.thresholds.repeat.p95.ms=750

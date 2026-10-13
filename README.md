@@ -20,3 +20,32 @@ Placeholder files mark where each story's work goes; the code is left to the Spr
 - Secrets (`ConnectionStrings__DefaultConnection`, `JwtSettings__Secret`, `PayHere__MerchantSecret`) go in user secrets or Azure app settings, never in git.
 - CI (`.github/workflows/ci.yml`) restores, builds, tests and builds the Docker image on `main`, `develop` and `feature/**`.
 - CD (`.github/workflows/cd.yml`) is run manually and needs the `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`, `AZURE_APPOINTMENT_APP_NAME` and `AZURE_APPOINTMENT_PUBLISH_PROFILE` repository secrets.
+
+## GCN-47 doctor appointments
+
+Doctor-only routes: GET `/api/doctor/appointments`, GET `/api/doctor/appointments/{id}`, PATCH `/api/doctor/appointments/{id}/status`. Identity comes from the validated JWT; foreign appointments return 404. The collection includes Sri Lanka calendar memberships, current payment details and unique patient counts. Status updates use expected status/update timestamp, enforce consultation-time rules and save an audit row atomically. No Show is a terminal appointment status.
+
+Configure `UserAuthService__BaseUrl` as the **direct auth service origin** (locally `http://localhost:5133`). Auth must configure `AppointmentIntegration__BaseUrl` pointing back to this service, using compatible JWT issuer/audience/signing settings. Contact lookups expose only assigned patients' names/mobile numbers and fail safely without hiding appointment records. POST `/api/doctor/appointments/patient-access` is the doctor-only, database-only ownership check used by auth; it never invokes contact lookup.
+
+Apply `20261011035248_GCN47DoctorAppointmentStatusHistory` before enabling updates. The migration adds only `AppointmentStatusChanges`; existing booking/payment tables remain intact. **The design-time DbContext factory has a dummy connection**, so explicitly pass the intended connection when applying migrations:
+
+```powershell
+# Configure this environment variable privately for the intended database first.
+dotnet ef database update --project src/AppointmentIntegration.Api --configuration Release --connection $env:ConnectionStrings__DefaultConnection
+```
+
+Do not commit connection strings or tokens. Tests use isolated SQLite/InMemory databases; run `dotnet test AppointmentIntegration.sln --configuration Release`.
+# GCN-48 patient cancellation
+
+Patient/User-authenticated endpoints:
+
+- `GET /api/patient/appointments/{appointmentId}/cancellation`: current eligibility, restriction/refund explanation, confirmation version and any persisted cancellation result.
+- `POST /api/patient/appointments/{appointmentId}/cancellation`: `{ "expectedVersion": "<GET version>", "acknowledgeNoRefund": false, "reason": "optional, max 500 characters" }`.
+
+Only the owning patient can read/cancel. Booked/Confirmed appointments can be cancelled strictly before their start. Unpaid cash or no payment selection requires no refund. Paid cash is restricted. A verified bank transfer is eligible for a manual refund at least six hours before start; within six hours cancellation remains possible without refund and requires acknowledgement. Receipt verification and active gateway checkout block cancellation. Successful gateway payment cannot be cancelled by patients. Unknown/inconsistent financial states fail closed. Stale eligibility returns 409 and requires refresh/reconfirmation; repeated confirmed cancellation returns its stored result.
+
+Apply `20261011100356_GCN48AppointmentCancellation` before starting the updated API. It adds cancellation, manual refund and late-payment reconciliation records. Existing paid payments remain Successful; PendingManualProcessing means refund eligibility is recorded, not money returned. No refund administration UI or automatic bank transfer is included. Late gateway money after cancellation is retained in its original attempt and flagged PendingManualReview; switching to cash must not mislabel gateway money as cash paid.
+
+All appointment/payment mutation paths share a database-backed appointment lock and transaction. Receipt storage I/O happens before final locking/revalidation; orphan uploads are removed if cancellation won. Cancelled appointments retain their reserved slot and history; slot reuse is not part of this story. Cancellation is visible in existing patient/doctor views on refresh, and cancelled payment pages are history-only.
+
+The existing production appointment gateway routing prerequisite documented for GCN-47 still applies. Keep development credentials and uploaded files out of feature commits.

@@ -1,0 +1,18 @@
+{
+  "PublicContent": {
+    "Introduction": "CareNova connects you with pharmacy services and healthcare professionals. Explore our medicines, discover doctors and register to access patient services.",
+    "PharmacyBaseUrl": "http://localhost:5134/",
+    "DoctorBaseUrl": "http://localhost:5135/",
+    "FeaturedMedicineIds": [],
+    "FeaturedDoctorIds": [],
+    "AllowedOrigins": ["http://localhost:3000"],
+    "Services": [
+      { "Title": "Pharmacy services", "Description": "Browse medicines, check availability and learn about prescription requirements." },
+      { "Title": "Healthcare professionals", "Description": "Find doctors and explore their published professional information." },
+      { "Title": "Patient services", "Description": "Create an account to access available prescription, order and consultation services." }
+    ],
+    "Notices": [
+      { "Title": "Prescription medicines", "Message": "A valid prescription is required for prescription-only medicines." }
+    ]
+  }
+}

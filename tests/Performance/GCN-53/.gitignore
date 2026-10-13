@@ -1,0 +1,13 @@
+# GCN-53 generated, local-only or environment-specific files: never commit. (They are written OUTSIDE the repository by default, to ~/carenova/qa-reports/GCN-53/jmeter.)
+results/
+logs/
+evidence/
+fixtures/
+gcn53-migrations-preview.sql
+__pycache__/
+*.jtl
+*.trx
+*.pid
+*.env
+.env
+*.log

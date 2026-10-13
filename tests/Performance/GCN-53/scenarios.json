@@ -1,0 +1,92 @@
+{
+  "total_requests": 66,
+  "samplers": 24,
+  "scenarios_count": 6,
+  "read_only": true,
+  "note": "Functional, response-time and repeated-request consistency check on one thread. Not a load, concurrency or capacity test. Thresholds are sanity limits for a local development machine, not service levels.",
+  "scenarios": {
+    "J01": {
+      "name": "Admin dashboard appointment summary",
+      "samplers": 2,
+      "requests": 2,
+      "expected_status": 200,
+      "role": "Admin",
+      "endpoints": [
+        "/api/admin/dashboard/appointments",
+        "/api/admin/dashboard/appointment-payments"
+      ],
+      "threshold_ms": 3000
+    },
+    "J02": {
+      "name": "Admin appointment listing",
+      "samplers": 5,
+      "requests": 5,
+      "expected_status": "200 x4, 400 x1",
+      "role": "Admin",
+      "endpoints": [
+        "/api/admin/appointments?...",
+        "/api/admin/appointments?page=2&pageSize=5",
+        "/api/admin/appointments?search=Admin-B",
+        "/api/admin/appointments?search=CN-APT-ADM-5300&page=2",
+        "/api/admin/appointments?pageSize=101"
+      ],
+      "threshold_ms": 3000
+    },
+    "J03": {
+      "name": "Admin appointment income report",
+      "samplers": 2,
+      "requests": 2,
+      "expected_status": "200, 400",
+      "role": "Admin",
+      "endpoints": [
+        "/api/admin/reports/appointment-income?from&to (21 days)",
+        "/api/admin/reports/appointment-income?from&to (40 days)"
+      ],
+      "threshold_ms": 3000
+    },
+    "J04": {
+      "name": "Unauthenticated access",
+      "samplers": 4,
+      "requests": 4,
+      "expected_status": 401,
+      "role": "none",
+      "endpoints": [
+        "/api/admin/dashboard/appointments",
+        "/api/admin/dashboard/appointment-payments",
+        "/api/admin/appointments",
+        "/api/admin/reports/appointment-income"
+      ],
+      "threshold_ms": 3000
+    },
+    "J05": {
+      "name": "Non-admin access",
+      "samplers": 8,
+      "requests": 8,
+      "expected_status": 403,
+      "role": "Patient / PharmacyStaff / Doctor",
+      "endpoints": [
+        "/api/admin/dashboard/appointments",
+        "/api/admin/dashboard/appointment-payments",
+        "/api/admin/appointments",
+        "/api/admin/reports/appointment-income"
+      ],
+      "threshold_ms": 3000
+    },
+    "J06": {
+      "name": "Repeated dashboard requests",
+      "samplers": 3,
+      "requests": 45,
+      "expected_status": 200,
+      "role": "Admin",
+      "endpoints": [
+        "/api/admin/dashboard/appointments",
+        "/api/admin/dashboard/appointment-payments",
+        "/api/admin/appointments?page=1&pageSize=5"
+      ],
+      "threshold_ms": 1500,
+      "iterations": 15,
+      "mean_threshold_ms": 400,
+      "p95_threshold_ms": 750
+    }
+  }
+}
