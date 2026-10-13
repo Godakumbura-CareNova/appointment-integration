@@ -1,6 +1,9 @@
 name: Appointment Integration CD
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
