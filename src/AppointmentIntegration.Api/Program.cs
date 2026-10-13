@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.HttpOverrides;
+using Prometheus;
 using AppointmentIntegration.Api.Clients;
 using AppointmentIntegration.Api.DTOs.Appointment;
 using AppointmentIntegration.Api.Repositories;
@@ -139,6 +140,7 @@ builder.Services.AddSingleton<
     PayHerePaymentGateway>();
 
 builder.Services.AddAuthorizationPolicies();
+builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 app.UseForwardedHeaders();
@@ -175,8 +177,11 @@ app.UseAuthentication();
 app.UseStaticFiles();
 app.UseAuthorization();
 app.UseRateLimiter();
+app.UseHttpMetrics();
 
 app.MapControllers();
+app.MapHealthChecks("/health");
+app.MapMetrics();
 
 app.Run();
 public partial class Program { }
