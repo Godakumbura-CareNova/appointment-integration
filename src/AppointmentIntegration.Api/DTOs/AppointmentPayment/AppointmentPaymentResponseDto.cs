@@ -15,4 +15,5 @@ public class AppointmentPaymentResponseDto
     public string Status { get; set; } = string.Empty;
 
     public DateTime UpdatedAtUtc { get; set; }
+    public AppointmentReceiptFeedbackDto? LatestReceipt { get; set; }
 }
