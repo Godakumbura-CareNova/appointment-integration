@@ -176,9 +176,11 @@ public class AppointmentPaymentService : IAppointmentPaymentService
             return null;
         }
 
+        var receipt = payment.Method == AppointmentPaymentMethod.BankTransfer
+            ? await _repository.GetLatestReceiptAsync(payment.Id, cancellationToken) : null;
         return ToResponse(
             payment,
-            payment.Appointment);
+            payment.Appointment, receipt);
     }
 
     public async Task<AppointmentPaymentResponseDto> UploadReceiptAsync(
@@ -325,7 +327,7 @@ public class AppointmentPaymentService : IAppointmentPaymentService
             if (mutation is not null) await mutation.CommitAsync(cancellationToken);
             return ToResponse(
                 payment,
-                payment.Appointment!);
+                payment.Appointment!, appointmentReceipt);
         }
         catch
         {
@@ -456,7 +458,7 @@ public class AppointmentPaymentService : IAppointmentPaymentService
         if (mutation is not null) await mutation.CommitAsync(cancellationToken);
         return ToResponse(
             payment,
-            payment.Appointment);
+            payment.Appointment, receipt);
     }
 
     private static async Task ValidateReceiptContentAsync(IFormFile receipt, CancellationToken cancellationToken)
@@ -508,10 +510,14 @@ public class AppointmentPaymentService : IAppointmentPaymentService
 
     private static AppointmentPaymentResponseDto ToResponse(
         AppointmentPayment payment,
-        Appointment appointment)
+        Appointment appointment, AppointmentReceipt? receipt = null)
     {
+        var feedback = receipt is not null && receipt.PatientId == payment.PatientId && receipt.AppointmentId == appointment.Id
+            ? new AppointmentReceiptFeedbackDto(receipt.Status.ToString(), receipt.RejectionReason,
+                receipt.ReviewedAtUtc.HasValue ? DateTime.SpecifyKind(receipt.ReviewedAtUtc.Value, DateTimeKind.Utc) : null) : null;
         return new AppointmentPaymentResponseDto
         {
+            LatestReceipt = feedback,
             Id = payment.Id,
             AppointmentId = appointment.Id,
             AppointmentReference =

@@ -12,4 +12,5 @@ public sealed class AppointmentSummaryDto
     public string? PaymentMethod { get; init; }
     public string? PaymentStatus { get; init; }
     public bool CanPay { get; init; }
+    public AppointmentIntegration.Api.DTOs.AppointmentPayment.AppointmentReceiptFeedbackDto? LatestReceipt { get; init; }
 }
