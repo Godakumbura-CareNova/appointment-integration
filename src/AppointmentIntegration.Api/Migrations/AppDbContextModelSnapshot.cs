@@ -342,6 +342,9 @@ namespace AppointmentIntegration.Api.Migrations
                     b.Property<Guid>("PatientId")
                         .HasColumnType("char(36)");
 
+                    b.Property<DateTime?>("PatientNotificationReadAtUtc")
+                        .HasColumnType("datetime(6)");
+
                     b.Property<string>("RejectionReason")
                         .HasMaxLength(500)
                         .HasColumnType("varchar(500)");

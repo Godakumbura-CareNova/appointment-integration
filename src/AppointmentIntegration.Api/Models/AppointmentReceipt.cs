@@ -45,4 +45,6 @@ public class AppointmentReceipt
 
     [MaxLength(500)]
     public string? RejectionReason { get; set; }
+    // The rejected receipt itself is the durable patient notification (one per receipt).
+    public DateTime? PatientNotificationReadAtUtc { get; set; }
 }
